@@ -10,3 +10,7 @@ No accounts, no app install — just a link, a first name, and an ETA.
 ## Status
 
 Planning. Nothing built yet.
+
+Platform decision: **native (React Native + Expo)** with a web join page so the
+invite link works without an install. Map view, event PIN, and push notifications
+are all in v1.
