@@ -1,0 +1,20 @@
+{
+  "name": "where-are-they",
+  "private": true,
+  "version": "0.1.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "pnpm@10.33.0",
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm -r lint",
+    "check": "pnpm typecheck && pnpm test",
+    "db:test": "bash scripts/db-test.sh"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}
