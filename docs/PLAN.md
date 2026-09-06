@@ -1,374 +1,537 @@
 # Where Are They — Product Plan & Requirements
 
-**Status:** Draft v2 — decisions made, one open conflict
+**Status:** Draft v4 — expanded scope: groups, roles, and bills
 **Shareable version:** https://claude.ai/code/artifact/14b8865a-b0a2-4d23-8c9e-fb0f16f2570a
-**One-line pitch:** Send one link to your dinner group; everyone checks in, shares location, and sees who's arriving when.
+**One-line pitch:** The app your group opens when you're meeting up — who's coming, who's close, and who owes what.
 
 ---
 
-## 0. Decisions log
+## 0. What this is now
+
+The original product answered one question: *when is everyone getting here?* The expanded product answers a bigger one: *everything about tonight, in one place* — arrival, the thread, and the bill.
+
+That is a different company. It changes three things structurally:
+
+1. **Identity stops being optional.** Roles need someone to hold them and money needs someone to owe it. "No accounts" survives only as "no accounts *to join one event*."
+2. **A second object appears above the event.** The six friends are a **group** that persists; the dinner is an **event** that doesn't.
+3. **Scope needs a rule, not a list.** "Anything group related" is unbounded. §4 proposes **modules** — a small framework so new capabilities slot in without redesigning the app each time.
+
+**Positioning:** this now overlaps Splitwise (bills), Life360 (location), and the group chat itself. Arrival ETA is the wedge — it's the thing none of them do well for a one-off dinner. Bills are what make the group keep the app after the dinner ends. Neither works alone.
+
+---
+
+## 1. Decisions log
 
 | # | Decision | Chosen | Consequence |
 | --- | --- | --- | --- |
-| D-1 | Platform | **Native from the start** (React Native + Expo) | Real background tracking. Adds App Store + Play Store review, and see §1.1 |
-| D-2 | Stack | **Supabase + Mapbox** | Managed Postgres, Realtime, routing. Unchanged by going native |
-| D-3 | Map view | **In v1** | `@rnmapbox/maps`, ~2 days |
+| D-1 | Platform | **Native from the start** (React Native + Expo) | Real background tracking; adds store review |
+| D-2 | Stack | **Supabase + Mapbox** | Managed Postgres, Realtime, routing, auth, storage |
+| D-3 | Map view | **In v1** | `@rnmapbox/maps` |
 | D-4 | Event PIN | **In v1** | 4-digit code, one prompt per device |
-| D-5 | Push notifications | **In v1** | Much cheaper on native than web — Expo Push Service |
+| D-5 | Push notifications | **In v1** | Expo Push Service |
+| D-6 | Invite link | **Hybrid** — native app + web join page | The link works without an install |
+| D-7 | In-app chat | **In v1** | Reframed as an event feed, not a messenger |
+| D-8 | Identity | **Guest-first, upgradeable accounts** | See §2 — the crux of the expanded scope |
+| D-9 | Groups & roles | **Owner / Manager / Member / Guest** | See §3 |
+| D-10 | Bills | **In scope** | See §6 and the open question in §16 |
 
-**Timeline effect:** the web-first plan was ~1 week to v1. This one is **~3.5–5 weeks of build**, plus 1–7 days of store review latency that can't be compressed. That is the honest cost of the choices above, and it is a reasonable trade if background tracking is the point of the product.
-
-### 1.1 The conflict these decisions create — needs a call
-
-The founding premise is **"send one link, no install."** Native breaks that: every friend must install an app from a store before dinner, which for a six-person one-off dinner is the difference between five people participating and two.
-
-**Recommended resolution — the hybrid:** keep a thin web page as the invite target. Anyone opening the link can RSVP, check in, and share foreground location in the browser immediately. The native app is the *upgrade* for people who want reliable background tracking and push. The link works for everyone; the app is opt-in.
-
-This costs one extra surface to build (~3 days) but preserves the thing that makes the product work at all. The alternative — native-only, everyone installs — is cheaper to build and much more expensive to adopt.
-
-**This plan assumes the hybrid.** If you'd rather go native-only, §5 and §9 shrink and the adoption risk in §12 gets much larger.
+**Timeline effect:** this is no longer a one-week project or a five-week one. Built as one release it is **~9–12 weeks**. §14 proposes shipping it as three releases instead, so each layer proves itself before the next is built.
 
 ---
 
-## 2. The loop
+## 2. Identity model (D-8)
 
-Six friends are meeting for dinner at 7:30pm.
+The original onboarding — a link and a first name — is the best thing about this product. Accounts would kill it. But roles need a durable subject and money needs a durable creditor, so identity has to exist. The resolution is a ladder, not a gate.
 
-1. **Ana** creates an event: place, date, time.
-2. She gets a link and drops it in the group chat.
-3. Each friend opens the link — in the app if they have it, in the browser if they don't — types their name, and RSVPs.
-4. Around dinner time each taps **"I'm on my way"** and grants location access.
-5. Everyone sees one live list: who's still home, who's en route with an ETA, who has arrived. App users keep updating in the background; browser users update while the page is open.
-6. As each person gets close, the group gets a push: *"Priya is 5 minutes away."*
-7. When the last person arrives, sharing stops automatically and the data is deleted.
+### Tier 0 — Guest
+Opens an invite link, types a name, gets a device-scoped token. **No account, no friction.**
+
+Can: RSVP, check in, share location, post to the feed, **be included in a bill split**.
+Cannot: belong to a group, hold a role, carry a balance between events, settle up.
+
+### Tier 1 — Account
+Sign in with Apple, Google, or phone OTP. Apple sign-in is mandatory if the others are offered, per App Store rules.
+
+Required to: join a group, hold a role, carry balances across events, settle up, create a group.
+
+### The upgrade moment
+A guest is prompted to claim their identity **exactly once, at the moment it buys them something** — almost always when they first appear in a bill split: *"Marco added you to a £96 bill. Create an account to track what you're owed."* Never a launch-screen wall.
+
+**Claiming rules.** A guest participant merges into an account when the claim comes from the device that joined, holding a valid participant token. On merge, all of that guest's participations, feed messages, and balances transfer. A participant already merged into an account cannot be re-claimed. This is the highest-risk flow in the product — a hijacked claim is a stolen debt — so it gets explicit tests before bills ship.
+
+**Consequence for bills:** an unclaimed guest can be *included* in a split, but their balance is held against the participant record, not a person. The UI must say so — *"Sam hasn't claimed their account; this balance can't be settled yet."* Managers can still see the total.
 
 ---
 
-## 3. Product principles
+## 3. Groups and roles (D-9)
+
+A **group** is a set of people who meet more than once — "Dinner Crew", "Flat 4". It persists. An **event** belongs to a group, or stands alone for a one-off with no group behind it.
+
+### Roles
+
+| Role | Who |
+| --- | --- |
+| **Owner** | Created the group. Exactly one per group, transferable. |
+| **Manager** | Trusted co-organizer. Any number. |
+| **Member** | Belongs to the group, participates. |
+| **Guest** | Joined one event by link. Not a group member; no role. |
+
+### Permission matrix
+
+| Action | Owner | Manager | Member | Guest |
+| --- | :---: | :---: | :---: | :---: |
+| Delete group | ✓ | | | |
+| Transfer ownership | ✓ | | | |
+| Rename / edit group | ✓ | ✓ | | |
+| Invite to group | ✓ | ✓ | ○ | |
+| Remove a member | ✓ | ✓ | | |
+| Promote member → manager | ✓ | ✓ | | |
+| Demote a manager | ✓ | | | |
+| Create an event | ✓ | ✓ | ○ | |
+| Edit / cancel any event | ✓ | ✓ | | |
+| Edit own event | ✓ | ✓ | ✓ | |
+| Toggle event modules | ✓ | ✓ | ● | |
+| Remove someone from an event | ✓ | ✓ | | |
+| Add an expense | ✓ | ✓ | ✓ | ✓ |
+| Edit / delete any expense | ✓ | ✓ | | |
+| Edit own expense | ✓ | ✓ | ✓ | ✓ |
+| Post to the feed | ✓ | ✓ | ✓ | ✓ |
+| Share own location | ✓ | ✓ | ✓ | ✓ |
+| Leave | ✓* | ✓ | ✓ | ✓ |
+
+○ = group setting, off by default  ● = only on events they created  ✓* = Owner must transfer ownership first
+
+**Invariants**, enforced in the database, not just the UI:
+- Every group has exactly one Owner at all times.
+- An Owner cannot leave or be removed without transferring ownership.
+- A Manager cannot demote or remove another Manager — only the Owner can.
+- Nobody can promote themselves.
+- Every permission check happens server-side. The UI hides what you can't do; the API refuses it.
+
+---
+
+## 4. The module framework
+
+"Anything group related" is unbounded, and unbounded scope is how this stalls. The framework that makes it tractable: **an event is a shell with modules attached.** Each module owns a tab, its own data, and its own notifications.
+
+**Rule for what qualifies as a module:** it must be *about this specific gathering* and require *state shared between the people in it*. A restaurant recommendation engine fails the second test. A "who's bringing what" list passes both.
+
+| Module | Status | What it is |
+| --- | --- | --- |
+| **Arrival** | v1, always on | Check-in, live location, ETAs, map |
+| **Feed** | v1, default on | Messages interleaved with system events |
+| **Bills** | v1, default on | Expenses, splits, balances, settle-up |
+| Poll | later | Where and when — pick a place or a time together |
+| Checklist | later | Who's bringing what |
+| Photos | later | Shared album, expires with the event |
+| Reservation | later | Booking reference, party size, contact |
+
+Managers toggle modules per event. A one-off drink doesn't need Bills; a group holiday needs all of it.
+
+---
+
+## 5. The loop
+
+1. **Ana creates a group** — "Dinner Crew" — and invites five friends. She's the Owner; she makes Marco a Manager so he can organize when she's away.
+2. **Marco creates an event:** Kisa Izakaya, Thursday 7:30. Arrival, Feed and Bills are on.
+3. **The link goes in the group chat.** Group members are already in; Ana's cousin Sam opens it as a guest, types a name, and is in without an account.
+4. **Everyone RSVPs.**
+5. **At dinner time each taps "I'm on my way"** and the group sees one live list — who's here, who's en route with an ETA, who hasn't left.
+6. **Pushes as people get close:** *"Priya is 5 minutes away."*
+7. **The feed carries the rest** — *"grabbing the table"* sits next to *"Marco arrived 7:24."*
+8. **Marco pays the £96 bill** and adds it, split equally among the six who came.
+9. **Sam gets prompted to claim their account** so their £16 follows them.
+10. **Everyone settles up** through a Venmo or bank-transfer deep link. The app records that it happened; it never touches the money.
+11. **Location data is deleted hours later.** The feed goes in a week. The bill stays until it's settled.
+
+---
+
+## 6. Product principles
 
 | Principle | What it means in practice |
 | --- | --- |
-| **The link always works** | No install required to participate. The app is an upgrade, never a gate. |
-| **No accounts** | A link and a first name is the entire onboarding, on both surfaces. |
-| **Location is temporary** | Sharing runs only while you're checked in, stops on arrival, and retains nothing afterward. |
-| **Honest about staleness** | Never show a confident ETA computed from a 12-minute-old position. Show the age. |
-| **Background is a feature, not a promise** | App users get continuous tracking. Browser users get honest gaps. The UI shows which. |
-| **One screen** | The live view is the product. Everything else is setup. |
+| **The link always works** | No install and no account to join one event. The app is an upgrade; the account is an upgrade. |
+| **Identity is earned, not demanded** | Ask for an account at the moment it buys the user something — almost always the first bill. |
+| **Location is temporary** | Sharing runs only while checked in, stops on arrival, retains nothing. |
+| **Money is permanent** | A settled bill is a record. Different data, different retention, different care. |
+| **Honest about staleness** | Never a confident ETA from a 12-minute-old position. Show the age. |
+| **Chat is a feed, not a messenger** | It wins only by sitting next to arrivals, ETAs and the bill. |
+| **We never touch the money** | A ledger and a deep link, not a payment processor. See §16. |
+| **Permissions are server-side** | The UI hides; the API refuses. |
 
 ---
 
-## 4. Scope
+## 7. Scope
 
-### In scope for v1
-- Create an event (title, place, time)
-- Shareable invite link that opens the app if installed, the web page if not
-- Join by name, RSVP — on either surface
-- Check in, share location, mark arrived
-- **Background location tracking** (native app)
-- Live participant list with ETA, sorted by arrival order
-- **Map view** with venue pin and live participant dots
-- **Push notifications** — arrival proximity, nudges
-- **Optional 4-digit event PIN**
-- Automatic arrival detection and auto-stop
-- Automatic data expiry
+### In scope for v1 (all three releases)
+- **Identity:** guest participation, account sign-in (Apple / Google / phone), guest→account claiming
+- **Groups:** create, edit, invite, remove, roles, ownership transfer
+- **Events:** create under a group or standalone, invite link, RSVP, module toggles
+- **Arrival:** check-in, background location, ETA list, map, arrival detection, auto-stop
+- **Feed:** one thread per event, system events interleaved, quick replies
+- **Bills:** expenses, equal and exact splits, balances, debt simplification, settle-up with two-sided confirmation, receipt photos
+- **Notifications:** proximity, arrival, nudges, new message, new expense, settle-up request
+- **Lifecycle:** tiered retention (§13)
 
-### Explicitly out of scope for v1
-- User accounts, friends lists, contacts, event history
-- Chat / messaging (the group already has a group chat)
-- Bill splitting, restaurant search, reservations
-- Recurring events, calendar sync
-- Android/iOS widgets, watch apps
-- Live location *history* playback or trip replay
+### Explicitly out of scope
+- **Processing payments in-app** — see §16. Ledger and deep links only.
+- Itemized / per-dish bill splitting, multi-currency events, recurring expenses
+- Direct messages, threads, reactions, read receipts, media in the feed (receipts excepted)
+- Friend graph, discovery, public profiles, anything social beyond the group
+- Restaurant search, reservations, calendar sync, recurring events
+- Widgets, watch apps, trip replay, location history
 
 ---
 
-## 5. Functional requirements
+## 8. Functional requirements
 
-### FR-1 — Create event
-- Fields: **title** (optional, defaults to "Dinner"), **place** (required), **date & time** (required), **organizer name** (required).
-- Place is entered via autocomplete and resolves to `{name, address, lat, lng}`. A place with no coordinates is rejected — coordinates are what make ETAs possible.
-- Optional **4-digit PIN** (D-4), set at creation, off by default.
-- On submit, returns an invite link containing an unguessable event token.
-- The creator is added automatically with RSVP = Going.
-- Available on both surfaces; the web page is the more likely creation surface since the organizer often plans on a laptop.
+### Identity
 
-### FR-2 — Invite, install, and join
-- The invite link is the only credential. Anyone holding it (plus the PIN, if set) can view and join.
-- **Link routing:** iOS Universal Links and Android App Links open the native app when installed. Otherwise the link lands on the web join page, which offers "Continue in browser" (primary) and "Get the app" (secondary). Never an interstitial that blocks browser users.
-- **Deferred deep link:** if someone installs the app from that page, the app opens directly into the right event — carry the token through install.
-- New device shows event details + "What's your name?" Free text, 1–24 characters; duplicates get a disambiguating suffix.
-- PIN, if set, is requested once per device and cached.
-- Each joined device gets a long-lived participant token so returning restores identity. On native this lives in the secure store; on web, a signed httpOnly cookie.
-- Participants can rename or leave. Soft cap of **20**; the design targets 4–10.
+**FR-1 — Guest participation.** Opening an invite link and entering a name (1–24 chars) creates a guest participant bound to a device token — secure store on native, signed httpOnly cookie on web. No account, no email, no prompt. Guests can do everything in §3's matrix marked for Guest.
 
-### FR-3 — RSVP
-- Three states: **Going**, **Maybe**, **Can't make it**. Default **Pending** until answered.
-- Visible to all, changeable any time before the event.
+**FR-2 — Accounts.** Sign in with Apple, Google, or phone OTP. Apple sign-in is offered wherever the others are. An account carries a display name and optional avatar, nothing more — no bio, no username, no discovery. Accounts can be deleted; deletion is refused while the user holds an unsettled non-zero balance, with the balance shown.
 
-### FR-4 — Check-in & location sharing
-- From ~2 hours before start until 3 hours after, the primary action is **"I'm on my way."**
-- Tapping it requests location permission and sets status to `EN_ROUTE`.
-- **Native:** requests *When In Use* first, then escalates to *Always* with an in-app pre-prompt explaining exactly why (see PS-11). If the user grants only *When In Use*, the app degrades to foreground-only and says so — it never nags.
-- **Web:** browser geolocation, foreground only, with the staleness handling from FR-5.
-- Client sends `{lat, lng, accuracy, timestamp}` throttled: at most 1 update per 15s, and only after moving > 25m.
-- Travel mode — driving (default), walking, transit, cycling — affects ETA and is changeable mid-trip.
-- Stop sharing at any time with one tap; status stays `EN_ROUTE` with no live position.
-- If permission is denied on either surface, status is still settable manually with an optional self-reported ETA.
+**FR-3 — Claiming.** A guest is prompted to claim exactly once, at the first moment it buys them something. Claiming requires the joining device's valid participant token. On merge, participations, messages, and balances transfer to the account; the guest record is retired, never deleted, so the audit trail survives. An already-claimed participant cannot be re-claimed. Every claim is logged.
 
-### FR-5 — Background location (native)
-Continuous background GPS is the reason for going native, and also the fastest way to drain a battery and get rejected from a store. The tiered approach:
+### Groups & roles
 
-- **Tier 1 — far away (> 5km):** significant-location-change / `Balanced` accuracy with a 500m distance filter. Cheap, coarse, enough for a "still 40 minutes out" ETA.
-- **Tier 2 — approaching (< 5km):** `HighAccuracy` with a 50m distance filter and deferred updates batched to ~30s.
-- **Tier 3 — arrival:** a **geofence** at 150m around the venue triggers arrival detection even if the app is fully suspended.
-- Implemented with `expo-location`'s `startLocationUpdatesAsync` + `TaskManager`, an Android foreground service with a persistent notification, and `UIBackgroundModes: location` on iOS.
-- Tracking **stops itself** on arrival, on event expiry, and on a hard 4-hour safety timeout. A location task that outlives its event is a bug with real-world consequences.
-- Target: under 6% battery per hour in Tier 2, under 1% per hour in Tier 1.
+**FR-4 — Groups.** Any account holder creates a group with a name and optional avatar; they become Owner. A group holds members, a role per member, settings, and its events. Cap: 50 members.
 
-### FR-6 — ETA
-- Travel time from current position to the venue via Mapbox, respecting travel mode and live traffic.
-- Recompute at most **once per 45 seconds per participant**, or immediately after moving > 300m. All participants batch into a single Matrix call per cycle.
-- Display as an **arrival clock time** ("arrives 7:34") with minutes secondary. Clock times coordinate a group better than durations.
-- Position older than **2 min** → ETA greyed as stale. Older than **10 min** → ETA hidden, show "last seen 14 min ago".
-- Each row shows *how* the person is tracked (app / browser) so a gap reads as expected rather than broken.
-- If routing is unavailable, fall back to straight-line distance ÷ mode speed, clearly labelled.
+**FR-5 — Membership.** Owners and Managers invite by link or by phone/email. Invitees join as Members. Removal is immediate and revokes access to the group's events, but **not** to their own historical balances. Ownership transfer requires the Owner to nominate a Member or Manager, who must accept.
 
-### FR-7 — Live view
-- Header: event, place, time, and a group summary — *"3 here · 2 on the way · 1 pending"*.
-- Headline figure: the latest ETA among people going — when the group is actually complete.
-- List sorted **Arrived → En route** (soonest first) **→ Not started → Maybe → Can't make it**.
-- Each row: name, avatar, status chip, ETA or last-seen age, travel mode, tracking source, and a late indicator when the ETA falls after start time.
-- Real-time updates, no manual refresh.
+**FR-6 — Permissions.** The §3 matrix, enforced by Postgres row-level security plus server-side checks. Every mutating endpoint asserts the caller's role. The invariants in §3 are database constraints. A role change takes effect on the next request, not the next session.
 
-### FR-8 — Map view (D-3)
-- Second tab. Venue pin, a labelled dot per sharing participant, auto-fit bounds on all active participants.
-- Tapping a dot selects that person's row; tapping a row centres their dot.
-- Dots carry the same staleness treatment as the list — faded at 2 minutes, dropped at 10.
-- No route lines in v1: six overlapping polylines is noise, not information.
-- `@rnmapbox/maps` on native, Mapbox GL JS on web, one shared style URL.
+### Events
 
-### FR-9 — Push notifications (D-5)
-- **Arrival proximity:** when a participant crosses 5 minutes' ETA, notify everyone else once — *"Priya is 5 minutes away."* One notification per participant per event.
-- **All here:** when the last Going participant arrives.
-- **Nudge:** a Going participant who hasn't checked in by start time can be nudged once by any other participant, rate-limited to one per participant per event.
-- **Late:** if your own ETA slips past the start time, you get told — you're the one who can act on it.
-- Permission requested at first check-in, not at app launch. Declining is remembered and never re-prompted in the same event.
-- Per-event mute toggle. Quiet by default after the event ends.
-- Delivered via **Expo Push Service** (native) and Web Push with VAPID keys (web surface, best-effort).
+**FR-7 — Events.** Created under a group (inherits its members) or standalone (guests only). Fields: title, place with coordinates, date & time, timezone, optional 4-digit PIN, enabled modules. Editable and cancellable per the matrix; cancelling notifies everyone and stops all location sharing immediately.
 
-### FR-10 — Arrival
-- **Automatic:** geofence entry at 150m sustained for 60 seconds → `ARRIVED`, sharing stops, the app says so.
-- **Manual:** an "I'm here" button is always available, covering GPS drift indoors and large venues.
-- Arrival is sticky — it does not revert if the person steps outside.
+**FR-8 — Invite & join.** iOS Universal Links and Android App Links open the app when installed; otherwise the web join page offers "Continue in browser" (primary) and "Get the app" (secondary) — never a blocking interstitial. Installing from that page carries the token through to the app (deferred deep link). Group members joining a group event skip the name prompt.
 
-### FR-11 — Lifecycle & expiry
-- Location data deleted **3 hours after** the last arrival, or **6 hours after** start — whichever comes first.
-- Event record deleted **7 days** after start.
-- Background location tasks and geofences are unregistered on expiry, on the device, not just server-side.
-- Enforced by a scheduled job, not merely a query filter.
+### Arrival
+
+**FR-9 — Check-in & sharing.** From 2 hours before start to 3 hours after, the primary action is "I'm on my way." Native requests *When In Use*, then escalates to *Always* behind an in-app pre-prompt (PS-11); granted only *When In Use*, it degrades to foreground and says so. Web is foreground-only. Updates throttle to 1 per 15s and only after moving > 25m. Travel mode — driving, walking, transit, cycling — is changeable mid-trip. Sharing stops with one tap. Permission denied → manual status plus an optional self-reported ETA.
+
+**FR-10 — Background location (native).** Three tiers: beyond 5km, significant-location-change at balanced accuracy with a 500m filter; inside 5km, high accuracy with a 50m filter and updates deferred to ~30s; arrival, a 150m geofence that fires while suspended. Built on `expo-location` + `expo-task-manager`, an Android foreground service, and `UIBackgroundModes: location`. Stops on arrival, on expiry, and on a hard 4-hour timeout. Targets: under 6%/hr in tier 2, under 1%/hr in tier 1.
+
+**FR-11 — ETA.** Mapbox routing, respecting mode and live traffic. Recompute at most once per 45s per participant, or on moving > 300m, batched into one Matrix call per cycle. Shown as an arrival clock time with minutes secondary. Older than 2 min → greyed stale; older than 10 min → hidden, replaced by "last seen 14 min ago". Each row shows how the person is tracked, so a gap reads as expected rather than broken.
+
+**FR-12 — Live view.** Header with event, place, time, group summary, and the headline figure: the latest ETA among people going. Sorted Arrived → En route (soonest first) → Not started → Maybe → Can't. Rows carry name, avatar, status chip, ETA or last-seen age, travel mode, tracking source, and a late indicator.
+
+**FR-13 — Map.** Venue pin, a labelled dot per sharing participant, auto-fit bounds. Tapping a dot selects the row and vice versa. Dots fade at 2 minutes and drop at 10. No route lines in v1.
+
+**FR-14 — Arrival.** Geofence entry at 150m sustained 60s → `ARRIVED`, sharing stops, the app says so. A manual "I'm here" is always available. Arrival is sticky.
+
+### Feed
+
+**FR-15 — Event feed.** One thread per event, messages and system events interleaved — joins, RSVP changes, check-ins, arrivals, late notices, **and expenses added or settled**. Text only, 1–500 characters; no editing, no deletion, no media. Quick replies for the three things people actually send — "On my way", "Running 10 late", "Grab a table" — where "Running 10 late" also updates the sender's self-reported ETA, so the feed and the list can't contradict each other. Unread count on the tab. Rate limit 20/participant/minute.
+
+### Bills
+
+**FR-16 — Expenses.** Any participant adds an expense to an event with: amount, description, who paid (one payer per expense in v1), which participants it splits across, and a split method — **equal** or **exact amounts** in v1. One currency per event, fixed at creation.
+
+- Amounts are stored as **integer minor units**. Never floats, anywhere in the stack.
+- Equal splits distribute the rounding remainder deterministically — the first *n* participants by stable sort each take one extra minor unit — so the parts always sum exactly to the total.
+- An optional **receipt photo**, stored in Supabase Storage with the retention in §13.
+- Edits and deletes are permitted per the matrix and **always leave an audit row**. Money disputes are resolved by history.
+
+**FR-17 — Balances & settle-up.**
+- A running net balance per participant per group, and per event.
+- **Debt simplification:** show the minimum set of transfers that clears the group, alongside the raw ledger. Both views; simplified by default; the raw ledger is always one tap away, because simplification is confusing until you can check it.
+- **Settle-up is two-sided.** The payer marks a transfer made; the recipient confirms. Unconfirmed settlements show as pending to both, and the balance doesn't move until confirmed. This is the single most important anti-dispute mechanism in the module.
+- **Payment happens outside the app** — a deep link to Venmo, PayPal.me, UPI, or a copyable bank reference, prefilled with amount and note. We record that a payment was claimed and confirmed. We never move money. See §16.
+- Balances against unclaimed guests are visible but not settleable, and say so.
+
+### Notifications
+
+**FR-18 — Push.** Proximity ("Priya is 5 minutes away", once per participant per event), all-here, nudge (once per participant per event), late (to yourself), new message (collapsed — a 60-second burst is one notification), new expense involving you, and settle-up requested / confirmed. Permission requested at first check-in, never at launch. Per-event mute and per-category preferences. Expo Push on native, Web Push with VAPID on the web surface.
+
+### Lifecycle
+
+**FR-19 — Retention.** Not everything expires at the same rate — see §13.
 
 ---
 
-## 6. Non-functional requirements
+## 9. Non-functional requirements
 
 | Area | Requirement |
 | --- | --- |
-| **Latency** | A position update is visible to others in < 3s (p95). |
-| **Battery** | < 6%/hr in Tier 2 tracking, < 1%/hr in Tier 1. Measured on a real mid-range Android and an iPhone, not estimated. |
-| **Data** | < 500KB per participant for a 45-minute trip. |
-| **Cold start** | Native app to live view in < 2s on a mid-range device. |
-| **Availability** | Best-effort. The list degrades to "last known" when realtime drops, and reconnects on its own. |
-| **Offline** | Queue up to 30 minutes of positions on native (a tunnel, a dead zone) and 5 minutes on web; flush on reconnect. Positions timestamped by the *client*. |
-| **Accessibility** | WCAG 2.1 AA on web, equivalent platform standards on native. Status never conveyed by colour alone, 44px targets, screen-reader labels on every row and map annotation. |
-| **Devices** | iOS 16+, Android 10+. Web fallback: iOS Safari 16+, Chrome Android 110+. |
-| **Cost** | Under $10/month at hobby scale, plus $99/yr Apple Developer and $25 one-off Google Play. |
+| **Latency** | Position updates visible to others in < 3s (p95); feed messages in < 1s (p95). |
+| **Battery** | < 6%/hr in tier-2 tracking, < 1%/hr in tier 1. Measured on real devices, not estimated. |
+| **Cold start** | App launch to live view in < 2s on a mid-range device. |
+| **Money correctness** | Splits always sum to the total, to the minor unit. Balances are derived from the ledger, never stored as a mutable running total. Every expense mutation is an append-only audit row. This is a correctness requirement, not a quality goal. |
+| **Permission correctness** | Every mutating endpoint asserts role server-side. A test exists for every ✓ and every blank in §3's matrix. |
+| **Availability** | Best-effort. The list degrades to "last known" when realtime drops and reconnects on its own. |
+| **Offline** | 30 minutes of queued positions on native, 5 on web. Expenses queue offline and reconcile on reconnect; conflicting edits resolve last-write-wins with both versions in the audit trail. |
+| **Accessibility** | WCAG 2.1 AA on web, platform equivalents on native. Status never by colour alone; 44px targets; every row, map annotation, and currency figure labelled. |
+| **Devices** | iOS 16+, Android 10+. Web on iOS Safari 16+, Chrome Android 110+. |
+| **Cost** | Under $25/month at small scale, plus $99/yr Apple and $25 one-off Google Play. |
 
 ---
 
-## 7. Privacy & security
+## 10. Privacy & security
 
-This app shares people's real-time physical location, and now does so in the background. That raises the bar.
-
-- **PS-1** — Location is shared only while a participant is explicitly `EN_ROUTE`, and only with participants of that one event.
-- **PS-2** — Sharing stops automatically on arrival and on expiry. A persistent, always-visible indicator shows when you are sharing — plus the Android foreground-service notification, which is not dismissible by design.
-- **PS-3** — No location history. Store the latest position per participant plus at most a 10-minute rolling trail for the map. Purge per FR-11.
-- **PS-4** — The invite token is a bearer credential: **≥128 bits of entropy**, URL-safe, non-sequential. Web pages carry `noindex` and `Referrer-Policy: no-referrer`.
-- **PS-5** — Optional 4-digit event PIN (D-4), rate-limited to 5 attempts per device per hour, verified server-side.
-- **PS-6** — Participant identity is a signed token in the platform secure store (native) or an httpOnly SameSite=Lax cookie (web). Never a client-controlled ID.
-- **PS-7** — Rate limits: join 10/hr/IP, positions 6/min/participant, event creation 20/hr/IP, nudges 1/participant/event.
-- **PS-8** — Coordinates rounded server-side to ~5 decimal places. No reverse-geocoded street addresses stored or shown.
-- **PS-9** — Plain-language disclosure at the permission prompt: who sees your location, for how long, and when it stops.
-- **PS-10** — No third-party analytics or ad SDKs in the app or on any page that handles location.
-- **PS-11** — **Background location disclosure.** Both stores require an in-app explanation shown *before* the system prompt, stating what background access is used for and that it stops on arrival. Apple requires the justification in App Review notes; Google Play requires a declaration form plus a **demo video** showing the in-app disclosure and the feature in use. Budget for this — it is a common rejection cause and the Play review can take over a week.
-- **PS-12** — Push tokens are per-device, revoked on leave, and deleted with the event.
+- **PS-1** — Location is shared only while explicitly en route, and only with participants of that one event.
+- **PS-2** — Sharing stops automatically on arrival and expiry. A persistent in-app indicator, plus Android's non-dismissible foreground-service notification.
+- **PS-3** — No location history: latest position plus at most a 10-minute rolling trail.
+- **PS-4** — Invite tokens are bearer credentials: 128+ bits, URL-safe, non-sequential. Web pages carry `noindex` and `Referrer-Policy: no-referrer`.
+- **PS-5** — Optional 4-digit event PIN, server-verified, 5 attempts per device per hour.
+- **PS-6** — Identity tokens live in the platform secure store or an httpOnly SameSite=Lax cookie. Never client-controlled.
+- **PS-7** — Rate limits: join 10/hr/IP, positions 6/min/participant, messages 20/min/participant, expenses 30/hr/participant, creation 20/hr/IP.
+- **PS-8** — Coordinates rounded server-side to ~5 decimals. No reverse-geocoded addresses stored or shown.
+- **PS-9** — Plain-language disclosure at every permission prompt.
+- **PS-10** — No third-party analytics or ad SDKs anywhere in the product.
+- **PS-11** — Background location disclosure shown in-app *before* the system prompt. Apple wants it justified in review notes; Google Play wants a declaration form plus a demo video. Common rejection cause; budget for it.
+- **PS-12** — Push tokens are per-device, revoked on leave, deleted with the event.
+- **PS-13** — Feed messages are event-scoped, never indexed, never used to build a profile. Bodies escaped on render, length-capped, links rendered as plain text.
+- **PS-14** — **Financial records are the most sensitive data here.** Expenses, balances, and settlements are visible only to the event's participants. Receipt images are served from short-lived signed URLs, never public buckets. No amount ever appears in a push notification preview beyond a rounded figure the recipient already knows.
+- **PS-15** — **Claiming is an attack surface.** A guest→account merge requires the joining device's token, is single-use, is logged with device and IP, and is rate-limited. A failed claim never reveals whether the participant exists.
+- **PS-16** — **Role escalation is audited.** Every promotion, demotion, removal, and ownership transfer writes an immutable audit row visible to the group's Owner.
+- **PS-17** — Payment deep links are constructed client-side from user-entered handles and never stored server-side beyond the handle itself. No card, bank, or account numbers are ever collected. See §16.
 
 ---
 
-## 8. Architecture
+## 11. Architecture
+
+pnpm monorepo: `apps/mobile` (Expo), `apps/web` (Next.js), `packages/core` (types, permission matrix, split maths, ETA and staleness rules — written once, imported by both).
 
 | Layer | Choice | Why |
 | --- | --- | --- |
-| **Native client** | React Native + Expo (managed), TypeScript, Expo Router | One codebase for iOS and Android; EAS handles builds and submission |
-| **Background location** | `expo-location` + `expo-task-manager` | The reason for D-1 |
-| **Geofencing** | `expo-location` region monitoring | Arrival detection while suspended |
-| **Push** | `expo-notifications` + Expo Push Service | Avoids handling raw APNs/FCM credentials |
-| **Native maps** | `@rnmapbox/maps` | Same vendor and style as web |
-| **Web surface** | Next.js 15 on Vercel | Invite target, browser participation, event creation on desktop |
-| **Shared logic** | A `packages/core` workspace — types, ETA formatting, staleness rules, API client | Keeps the two surfaces from drifting |
-| **Database** | Supabase Postgres | Managed, free tier, real SQL, row-level security |
-| **Realtime** | Supabase Realtime | Works from both React Native and the browser |
-| **Routing / places** | Mapbox Directions, Matrix, Search | 100k req/mo free, traffic-aware |
-| **Builds & submission** | EAS Build + EAS Submit | Store pipeline without a Mac in the loop |
-| **Cleanup** | Vercel Cron → authenticated purge route | Enforces FR-11 |
-
-Monorepo: `apps/mobile` (Expo), `apps/web` (Next.js), `packages/core` (shared). pnpm workspaces.
+| Native client | React Native + Expo, TypeScript, Expo Router | One codebase both platforms; EAS builds and submits |
+| Web surface | Next.js 15 on Vercel | Invite target, browser participation, desktop creation |
+| Shared logic | `packages/core` | Permission checks and split maths must not exist twice |
+| Auth | Supabase Auth (Apple, Google, phone OTP) | Ships the hard parts; integrates with row-level security |
+| Database | Supabase Postgres | RLS is how §3's matrix gets enforced at the data layer |
+| Realtime | Supabase Realtime | Positions, feed, and balance changes on one channel per event |
+| File storage | Supabase Storage | Receipt images behind signed URLs |
+| Background location | `expo-location` + `expo-task-manager` | The reason for D-1 |
+| Push | `expo-notifications` + Expo Push | Avoids raw APNs / FCM credentials |
+| Maps | `@rnmapbox/maps` / Mapbox GL JS | One style URL for both surfaces |
+| Routing / places | Mapbox Directions, Matrix, Search | Traffic-aware, generous free tier |
+| Money maths | Integer minor units in `packages/core` | No float arithmetic anywhere |
+| Builds | EAS Build + EAS Submit | Store pipeline without a Mac in the loop |
+| Scheduled jobs | Vercel Cron → authenticated routes | Tiered retention (§13), ETA cycles, settle-up reminders |
 
 ---
 
-## 9. Data model
+## 12. Data model
 
 ```
-events
+accounts                               -- FR-2
+  id                uuid pk            -- Supabase auth user id
+  display_name      text
+  avatar_url        text null
+  created_at        timestamptz
+
+groups                                 -- FR-4
   id                uuid pk
-  token             text unique        -- 128-bit, URL-safe, the invite credential
-  pin_hash          text null          -- PS-5
+  name              text
+  avatar_url        text null
+  owner_account_id  uuid fk -> accounts        -- exactly one, enforced
+  members_can_invite      bool default false   -- the ○ in §3
+  members_can_create_event bool default false
+  default_currency  char(3)
+  created_at        timestamptz
+
+group_members                          -- FR-5
+  group_id          uuid fk -> groups
+  account_id        uuid fk -> accounts
+  role              enum(owner, manager, member)
+  joined_at         timestamptz
+  pk (group_id, account_id)
+  -- constraint: exactly one role=owner per group
+
+events                                 -- FR-7
+  id                uuid pk
+  group_id          uuid fk null       -- null = standalone event
+  created_by        uuid fk -> accounts
+  token             text unique        -- 128-bit invite credential
+  pin_hash          text null
   title             text
-  place_name        text
-  place_address     text
-  place_lat         double precision
-  place_lng         double precision
+  place_name / place_address           text
+  place_lat / place_lng                double precision
   starts_at         timestamptz
   timezone          text
-  location_purge_at timestamptz        -- FR-11
-  expires_at        timestamptz        -- FR-11
+  currency          char(3)            -- fixed at creation, FR-16
+  status            enum(active, cancelled)
+  location_purge_at / feed_purge_at / expires_at   timestamptz
 
-participants
+event_modules                          -- §4
+  event_id          uuid fk
+  module            enum(arrival, feed, bills)
+  enabled           bool
+  pk (event_id, module)
+
+participants                           -- FR-1: a person *in one event*
   id                uuid pk
-  event_id          uuid fk -> events
+  event_id          uuid fk
+  account_id        uuid fk null       -- null while still a guest
+  claimed_at        timestamptz null   -- FR-3
   display_name      text
   color             text
-  is_organizer      bool
   rsvp              enum(pending, going, maybe, cant)
   status            enum(not_started, en_route, arrived)
   travel_mode       enum(driving, walking, transit, cycling)
-  tracking_source   enum(app_background, app_foreground, web, manual)   -- FR-6
+  tracking_source   enum(app_background, app_foreground, web, manual)
   sharing           bool
   self_reported_eta timestamptz null
   arrived_at        timestamptz null
   device_token_hash text
-  push_token        text null          -- PS-12
+  push_token        text null
   muted             bool
+
+positions / etas                       -- as before; latest + 10-min trail only
+
+messages                               -- FR-15
+  id                bigserial pk
+  event_id          uuid fk
+  participant_id    uuid fk null       -- null for system events
+  kind              enum(text, joined, rsvp, checked_in, arrived, late,
+                         expense_added, settled)
+  body              text null          -- 1..500 chars for kind=text
+  meta              jsonb null
+  created_at        timestamptz
+  index (event_id, created_at)
+
+expenses                               -- FR-16
+  id                uuid pk
+  event_id          uuid fk
+  created_by        uuid fk -> participants
+  paid_by           uuid fk -> participants
+  amount_minor      bigint             -- integer minor units, never float
+  currency          char(3)
+  description       text
+  split_method      enum(equal, exact)
+  receipt_path      text null          -- Supabase Storage, signed URLs only
+  created_at        timestamptz
+  deleted_at        timestamptz null   -- soft delete; history survives
+
+expense_shares
+  expense_id        uuid fk
+  participant_id    uuid fk
+  amount_minor      bigint             -- parts always sum to expenses.amount_minor
+  pk (expense_id, participant_id)
+
+settlements                            -- FR-17, two-sided
+  id                uuid pk
+  event_id          uuid fk
+  from_participant  uuid fk
+  to_participant    uuid fk
+  amount_minor      bigint
+  method            enum(venmo, paypal, bank, cash, other)
+  claimed_at        timestamptz        -- payer says they paid
+  confirmed_at      timestamptz null   -- recipient agrees; balance moves here
   created_at        timestamptz
 
-positions                              -- latest + short trail only, PS-3
+audit_log                              -- PS-16, FR-16
   id                bigserial pk
-  participant_id    uuid fk
-  lat               double precision
-  lng               double precision
-  accuracy_m        real
-  recorded_at       timestamptz        -- client clock (offline queue)
-  received_at       timestamptz
-
-etas
-  participant_id    uuid pk fk
-  eta_at            timestamptz
-  distance_m        integer
-  duration_s        integer
-  source            enum(routed, straight_line)
-  computed_at       timestamptz
-
-notifications_sent                     -- dedupe, FR-9
-  participant_id    uuid fk
-  kind              enum(proximity, all_here, nudge, late)
-  sent_at           timestamptz
-  pk (participant_id, kind)
+  actor_account_id  uuid fk null
+  scope             enum(group, event, expense, role, claim)
+  scope_id          uuid
+  action            text
+  before / after    jsonb null
+  ip / user_agent   text null
+  created_at        timestamptz
 ```
 
-**Row-level security:** every read is scoped by event token → event id. A participant may write only their own row and their own positions.
+**Balances are never stored.** They are derived from `expense_shares` minus confirmed `settlements`, in a database view. A stored running total is a bug waiting for a race condition.
+
+**Row-level security** implements §3: membership and role are joined into every policy. A participant may write only their own row, their own positions, and expenses they're permitted to touch.
 
 ---
 
-## 10. API surface
+## 13. Tiered retention
 
-| Method | Path | Purpose |
+Different data, different clocks. This is a design decision, not an oversight.
+
+| Data | Retained | Why |
 | --- | --- | --- |
-| `POST` | `/api/events` | Create event, returns `{token, inviteUrl}` |
-| `GET` | `/api/events/:token` | Full state snapshot |
-| `POST` | `/api/events/:token/verify-pin` | PS-5 |
-| `POST` | `/api/events/:token/join` | `{displayName}` → participant token |
-| `PATCH` | `/api/events/:token/me` | RSVP, status, travel mode, sharing, self-reported ETA, name, mute |
-| `POST` | `/api/events/:token/me/position` | Single or batched positions (offline flush) |
-| `POST` | `/api/events/:token/me/push-token` | Register/revoke a push token |
-| `POST` | `/api/events/:token/nudge` | `{participantId}`, rate-limited |
-| `DELETE` | `/api/events/:token/me` | Leave |
-| `GET` | `/api/events/:token/stream` | Realtime subscription |
-| `POST` | `/api/cron/purge` | Scheduled cleanup, secret-header auth |
+| Positions | Deleted 3h after last arrival, or 6h after start | The most sensitive, least durable data in the product |
+| Live ETAs | With positions | Derived, meaningless afterwards |
+| Feed messages | 30 days after the event | Long enough to settle an argument, short enough not to be an archive |
+| Receipt images | Until settled + 90 days | Someone will need to check the bill |
+| Expenses, shares, settlements | Until settled + 12 months | Financial records people expect to be able to look back at |
+| Audit log | 24 months | Disputes and role questions surface late |
+| Groups, accounts | Until deleted by the user | Account deletion blocked while an unsettled balance exists |
 
-ETAs and proximity notifications are computed server-side on a timer per active event — one Matrix call covers every participant and caps the routing bill.
+Enforced by scheduled jobs, not query filters. Device-side location tasks and geofences are unregistered on expiry, on the device.
 
 ---
 
-## 11. Build plan
+## 14. Build plan — three releases
 
-### Phase 0 — Foundations *(~1 day)*
-pnpm monorepo, Expo app with dev client, Next.js web app, Supabase project, schema migration, EAS configured, both surfaces deployed/installable. **Done when:** a "hello" build runs on a real phone and a real URL.
+Building all of this before anyone uses any of it is the main way this fails. Ship it in three.
 
-### Phase 1 — Event, invite, RSVP, both surfaces *(~3–4 days)*
-FR-1, FR-2, FR-3. No location. Universal Links / App Links, deferred deep link, web join page, PIN. **Done when:** five people join one event from a chat link — some in the app, some in the browser — and everyone sees the RSVP list update live.
+### Release 1 — "Who's coming, and when?" *(~4–5 weeks)*
+The original product, complete and standalone. Guests only, no accounts, no groups, no bills.
 
-### Phase 2 — Check-in, foreground location, ETA *(~3 days)*
-FR-4 foreground path, FR-6, FR-7, FR-10 manual. **Done when:** two phones across town show plausible, updating ETAs with the app open.
+- **R1.0 Foundations** *(~1 day)* — monorepo, Expo dev client, Next.js, Supabase, EAS.
+- **R1.1 Events, invite, RSVP** *(~3–4 days)* — both surfaces, universal links, deferred deep link, PIN. **Done when:** five people join from a chat link, some in-app, some in-browser.
+- **R1.2 Check-in, foreground location, ETA** *(~3 days)* — **Done when:** two phones across town show plausible, updating ETAs.
+- **R1.3 Background tracking** *(~3–4 days)* — tiered accuracy, foreground service, *Always* flow, geofenced arrival, measured battery. The hardest phase. **Done when:** a pocketed phone on a 30-minute drive produces a continuous ETA and auto-arrives.
+- **R1.4 Map** *(~2 days)*
+- **R1.5 Feed** *(~2–3 days)*
+- **R1.6 Push** *(~2–3 days)*
+- **R1.7 Robustness & privacy** *(~2 days)*
+- **R1.8 Store submission** *(~2 days + 1–7 waiting)* — start the Play background-location declaration back at R1.3; it gates release and reviews slowly.
 
-### Phase 3 — Background tracking *(~3–4 days)*
-FR-5 in full: tiered accuracy, TaskManager, Android foreground service, iOS Always permission flow, geofenced arrival, safety timeouts, battery measurement. The hardest phase and the one that justifies D-1. **Done when:** a phone in a pocket, screen off, for a 30-minute drive produces a continuous ETA and auto-arrives.
+**Ship it to the actual friend group and use it for real dinners before starting R2.**
 
-### Phase 4 — Map view *(~2 days)*
-FR-8 on both surfaces.
+### Release 2 — "Our group" *(~2–3 weeks)*
+- **R2.1 Accounts** *(~4 days)* — Apple, Google, phone OTP; account settings; deletion.
+- **R2.2 Claiming** *(~2 days)* — the guest→account merge, with the security work in PS-15 and tests before anything depends on it.
+- **R2.3 Groups & membership** *(~4 days)* — create, edit, invite, remove, ownership transfer.
+- **R2.4 Roles & permissions** *(~4 days)* — the §3 matrix in RLS and in `packages/core`, with a test per cell.
+- **R2.5 Events under groups** *(~2 days)* — module toggles, members skip the name prompt.
 
-### Phase 5 — Push notifications *(~2–3 days)*
-FR-9, PS-12, dedupe table, permission flow, mute.
+### Release 3 — "Who owes what" *(~3–4 weeks)*
+- **R3.1 Expenses** *(~4 days)* — add, edit, delete, equal and exact splits, integer-minor-unit maths with the rounding rule, audit rows.
+- **R3.2 Receipts** *(~2 days)* — capture, upload, signed URLs, retention.
+- **R3.3 Balances** *(~3 days)* — derived view, per-event and per-group, debt simplification with the raw ledger one tap away.
+- **R3.4 Settle-up** *(~4 days)* — two-sided confirmation, payment deep links, unclaimed-guest handling, reminders.
+- **R3.5 Bills notifications & feed integration** *(~2 days)*
+- **R3.6 Hardening** *(~3 days)* — the money-correctness NFRs, dispute paths, a full pass on PS-14 through PS-17.
 
-### Phase 6 — Robustness & privacy *(~2 days)*
-Staleness, offline queue, purge cron, rate limits, PS-11 disclosure screens, privacy copy, accessibility pass.
+**Total: ~9–12 weeks**, plus store review latency.
 
-### Phase 7 — Store submission *(~2 days work, 1–7 days waiting)*
-Icons, screenshots, privacy nutrition labels, Play background-location declaration and demo video, App Review notes, TestFlight and internal testing track. **Start the Play declaration during Phase 3, not here** — it gates release and reviews slowly.
-
-**Total: ~3.5–5 weeks of build, plus store review latency.**
-
-### Later, if it earns it
-Calendar export, place suggestions, recurring groups, widgets, trip replay.
-
----
-
-## 12. Definition of done for v1
-
-The six friends use it for a real dinner, and:
-- Everyone could join from the link — including whoever didn't install the app.
-- Everyone who tapped "on my way" showed an ETA within ±5 minutes of reality, with their phone in a pocket.
-- The group got a useful "5 minutes away" push, not a stream of noise.
-- The group answered "should we order?" from the app instead of the group chat.
-- Nobody's location was still being shared the next morning, and no location task survived the event.
+### Later, module by module
+Poll, Checklist, Photos, Reservation — each is a module against the §4 framework, roughly a week apiece, and each should be justified by a group actually asking for it.
 
 ---
 
-## 13. Risks
+## 15. Definition of done
+
+**Release 1** — the six friends use it for a real dinner: everyone joined from the link including whoever didn't install, ETAs landed within ±5 minutes with phones in pockets, the group answered "should we order?" in the feed, and nobody's location was still shared the next morning.
+
+**Release 2** — the group exists a month later without anyone re-sending a link, a Manager organized a dinner while the Owner was away, and no one could do anything the §3 matrix says they can't.
+
+**Release 3** — a real bill was split, settled, and confirmed by both sides; the balances came to zero; nobody opened Splitwise; and the arithmetic was right to the penny.
+
+---
+
+## 16. The one open decision: how money works
+
+**Recommendation: a ledger, not a wallet.** The app records who owes what and hands off to Venmo, PayPal, UPI, or a bank transfer via a prefilled deep link. It never holds, moves, or touches funds.
+
+This is not a technical shortcut — it is the difference between an app and a regulated financial business. Moving money on users' behalf means money-transmitter licensing in most US states, e-money authorisation in the UK and EU, KYC obligations, PCI scope, fraud and chargeback handling, and a support burden that dwarfs the rest of the product. Splitwise, which is the direct comparison, spent a decade as a pure ledger for exactly this reason.
+
+**If you eventually want in-app payment**, the realistic path is an integration where a licensed provider is the merchant of record and you never take custody. That is a company-level decision with legal review, not a sprint. It should not gate Release 3.
+
+**Open question:** confirm ledger-only for v1, or is in-app payment a requirement you want scoped?
+
+---
+
+## 17. Risks
 
 | Risk | Impact | Mitigation |
 | --- | --- | --- |
-| **Install friction kills adoption** — a one-off dinner doesn't justify an app store trip | **High** | The hybrid web surface (§1.1). This is the single most important mitigation in the plan |
-| **Play Store background-location review** — declaration form plus demo video, slow and a common rejection | **High** | Start the declaration during Phase 3; make the PS-11 disclosure screen unmissable |
-| **App Review rejects "Always" location** as not justified | **High** | Clear in-app pre-prompt, reviewer notes, and a build that degrades gracefully to When In Use |
-| **Battery drain** turns into uninstalls | Medium | Tiered accuracy (FR-5), deferred updates, geofence-based arrival, measured not estimated |
-| **Two surfaces drift apart** | Medium | `packages/core` holds every shared rule; ETA and staleness logic exists once |
-| **Scope creep into a social network** | Medium | §4's out-of-scope list is the contract |
-| **ETA accuracy in dense cities / transit** | Medium | Traffic-aware driving profile; label transit ETAs approximate |
-| **Link leaks → strangers see live locations** | Medium | High-entropy tokens, noindex, no-referrer, PIN now in v1, auto-expiry |
-| **Routing cost overrun** | Low | Server-side computation on a fixed timer, hard per-event cap |
-
----
-
-## 14. Open questions
-
-1. **Confirm the hybrid (§1.1)** — native app plus a web join page, or native-only?
-2. **"Something else" in v1 extras** — you flagged one alongside map, PIN, and push. What was it?
+| **Scope has tripled** — a 1-week idea is now a 3-month product, and nothing ships | **High** | The three-release plan in §14. R1 is a complete, useful product on its own. Do not start R2 before R1 has survived real dinners |
+| **Money correctness bugs** destroy trust permanently — a wrong balance is unforgivable in a way a wrong ETA isn't | **High** | Integer minor units, deterministic rounding, derived-never-stored balances, an audit row per mutation, a test suite that asserts splits sum exactly |
+| **Regulatory exposure** if the product drifts toward holding funds | **High** | §16's ledger-only line, held explicitly |
+| **Claiming hijack** — a stolen merge is a stolen debt | **High** | PS-15: device-token requirement, single use, logged, rate-limited, tested before bills ship |
+| **Install friction kills adoption** | **High** | The hybrid web surface. Guests never need an account or an app |
+| **Store review of background location** — Play needs a declaration and a demo video | **High** | Start at R1.3; make the PS-11 disclosure unmissable |
+| **Permission bugs** — a Member doing a Manager's job, or worse | Medium | §3's invariants as database constraints; a test per matrix cell |
+| **The feed loses to the group chat** | Medium | System events give it content from the start; quick replies that change state. Empty after two real dinners → cut it |
+| **Competing with Splitwise and Life360 at once** | Medium | Arrival is the wedge; bills are retention. Neither is the whole pitch |
+| **Battery drain** turns into uninstalls | Medium | Tiered accuracy, deferred updates, geofenced arrival, measured on real hardware |
+| **Two surfaces drift apart** | Medium | `packages/core` holds every shared rule, permission checks and split maths included |
