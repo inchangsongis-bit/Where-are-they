@@ -1,6 +1,7 @@
 # Where Are They — Product Plan & Requirements
 
 **Status:** Draft v1 for review
+**Shareable version:** https://claude.ai/code/artifact/14b8865a-b0a2-4d23-8c9e-fb0f16f2570a
 **One-line pitch:** Send one link to your dinner group; everyone checks in, shares location, and sees who's arriving when.
 
 ---
