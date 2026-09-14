@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { disambiguate, validateDisplayName, validateMessage } from './validation.js';
+import { disambiguate, validateDisplayName, validateMessage } from './validation';
 
 describe('validateDisplayName', () => {
   it('trims and collapses whitespace', () => {

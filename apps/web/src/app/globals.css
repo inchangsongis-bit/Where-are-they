@@ -1,0 +1,125 @@
+:root {
+  --bg: #eff1ee;
+  --surface: #fbfcfa;
+  --surface-2: #f2f5f1;
+  --ink: #141f1d;
+  --ink-soft: #53615d;
+  --ink-faint: #7c8a85;
+  --rule: #d3dad5;
+  --accent: #0b6e63;
+  --go: #2c7a4c;
+  --go-soft: #dceee1;
+  --wait: #8a6a16;
+  --wait-soft: #f3ebd4;
+  --signal: #b24a17;
+  --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0e1514;
+    --surface: #161f1d;
+    --surface-2: #1c2624;
+    --ink: #e6ede9;
+    --ink-soft: #9aa8a3;
+    --ink-faint: #7a8884;
+    --rule: #2a3634;
+    --accent: #57cfbe;
+    --go: #63c98a;
+    --go-soft: #17301f;
+    --wait: #d5b754;
+    --wait-soft: #2f2814;
+    --signal: #ee9159;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+main { max-width: 520px; margin: 0 auto; padding: 24px 16px 64px; }
+
+h1 { font-size: 26px; letter-spacing: -0.02em; margin: 0 0 6px; }
+h2 { font-size: 18px; margin: 0 0 10px; }
+p { margin: 0 0 14px; color: var(--ink-soft); }
+
+label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 5px; }
+
+input, select, button {
+  font: inherit;
+  font-size: 16px; /* never below 16px: iOS zooms the page otherwise */
+}
+
+input, select {
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  margin-bottom: 14px;
+}
+
+button {
+  min-height: 44px; /* NFR: 44px touch targets */
+  padding: 11px 18px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--bg);
+  font-weight: 600;
+  cursor: pointer;
+}
+button:disabled { opacity: 0.55; cursor: default; }
+button.secondary {
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--rule);
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.card-head { padding: 16px; background: var(--surface-2); border-bottom: 1px solid var(--rule); }
+.venue { font-size: 13px; color: var(--ink-soft); margin-top: 2px; }
+.tally { font-size: 13px; color: var(--ink-soft); margin-top: 10px; }
+.headline { font-family: var(--mono); font-size: 22px; color: var(--accent); font-variant-numeric: tabular-nums; }
+.headline-label { font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-faint); }
+
+.row { display: grid; grid-template-columns: 32px 1fr auto; gap: 12px; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--rule); }
+.row:last-child { border-bottom: 0; }
+.avatar { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 600; color: #fff; }
+.name { font-weight: 600; font-size: 15px; }
+.sub { font-family: var(--mono); font-size: 11px; color: var(--ink-faint); margin-top: 2px; }
+.right { text-align: right; }
+.eta { font-family: var(--mono); font-size: 15px; font-variant-numeric: tabular-nums; }
+.eta.dim { color: var(--ink-faint); font-size: 12px; }
+
+.chip { display: inline-block; font-family: var(--mono); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; padding: 2px 6px; border-radius: 3px; margin-top: 3px; }
+.chip-go { background: var(--go-soft); color: var(--go); }
+.chip-wait { background: var(--wait-soft); color: var(--wait); }
+.chip-idle { background: var(--surface-2); color: var(--ink-faint); }
+
+.rsvp { display: flex; gap: 8px; margin: 16px 0; }
+.rsvp button { flex: 1; }
+.rsvp button[aria-pressed='true'] { background: var(--accent); color: var(--bg); }
+.rsvp button[aria-pressed='false'] { background: transparent; color: var(--ink-soft); border: 1px solid var(--rule); }
+
+.invite { display: flex; gap: 8px; align-items: center; margin: 16px 0; }
+.invite code { flex: 1; font-family: var(--mono); font-size: 12px; background: var(--surface-2); border: 1px solid var(--rule); border-radius: 8px; padding: 10px 12px; overflow-x: auto; white-space: nowrap; }
+
+.error { color: var(--signal); font-size: 14px; margin: 0 0 14px; }
+.hint { font-family: var(--mono); font-size: 11px; color: var(--ink-faint); }

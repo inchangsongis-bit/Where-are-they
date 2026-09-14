@@ -1,5 +1,5 @@
-import type { Participant } from './types.js';
-import { arrivalDisplay, displayTime } from './display.js';
+import type { Participant } from './types';
+import { arrivalDisplay, displayTime } from './display';
 
 /**
  * FR-12 — the order the live view lists people in.

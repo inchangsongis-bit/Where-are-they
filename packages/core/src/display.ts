@@ -1,5 +1,5 @@
-import type { Participant } from './types.js';
-import { positionFreshness } from './freshness.js';
+import type { Participant } from './types';
+import { positionFreshness } from './freshness';
 
 /**
  * FR-11/FR-12 — exactly what one row in the live view says about arrival.

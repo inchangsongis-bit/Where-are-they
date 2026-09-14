@@ -101,6 +101,22 @@ insert into messages (event_id, participant_id, kind, meta)
 values ('11111111-1111-1111-1111-111111111111',
         '33333333-3333-3333-3333-333333333333', 'arrived', '{"at":"7:24"}');
 
+-- Leaving an event must not fail because of the feed. participant_id is
+-- ON DELETE SET NULL, so a "joined" row outlives its author with no author.
+insert into participants (id, event_id, display_name, color, device_token_hash)
+values ('88888888-8888-8888-8888-888888888888',
+        '11111111-1111-1111-1111-111111111111', 'Leaver', '#111', 'hash-leaver');
+insert into messages (event_id, participant_id, kind)
+values ('11111111-1111-1111-1111-111111111111',
+        '88888888-8888-8888-8888-888888888888', 'joined');
+
+delete from participants where id = '88888888-8888-8888-8888-888888888888';
+
+select assert(
+  (select count(*) from messages
+    where kind = 'joined' and participant_id is null) = 1,
+  'a departed participant leaves their feed row behind with a null author');
+
 -- ---------------------------------------------------- latest_positions ---
 
 insert into positions (participant_id, lat, lng, accuracy_m, recorded_at) values

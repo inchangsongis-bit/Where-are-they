@@ -12,7 +12,9 @@
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r lint",
     "check": "pnpm typecheck && pnpm test",
-    "db:test": "bash scripts/db-test.sh"
+    "db:test": "bash scripts/with-postgres.sh bash -c 'for m in supabase/migrations/*.sql; do psql \"$DATABASE_URL\" -q -v ON_ERROR_STOP=1 -f \"$m\"; done; psql \"$DATABASE_URL\" -q -v ON_ERROR_STOP=1 -f supabase/tests/schema_test.sql'",
+    "verify": "bash scripts/with-postgres.sh bash scripts/verify.sh",
+    "smoke": "bash scripts/with-postgres.sh bash scripts/smoke.sh"
   },
   "devDependencies": {
     "typescript": "^5.7.2"

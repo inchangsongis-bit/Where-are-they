@@ -149,8 +149,12 @@ create table messages (
   check (
     (kind = 'text' and body is not null and char_length(body) between 1 and 500)
     or (kind <> 'text' and body is null)
-  ),
-  check (kind = 'text' or participant_id is not null or meta is not null)
+  )
+  -- Deliberately NOT requiring a system event to have an author: participant_id
+  -- is ON DELETE SET NULL, so when someone leaves, their "joined" row survives
+  -- with a null author. The feed is a record of what happened, not a list of
+  -- who is currently present, and a constraint demanding an author would make
+  -- leaving an event fail outright.
 );
 
 create index messages_event_created_idx on messages (event_id, created_at desc);

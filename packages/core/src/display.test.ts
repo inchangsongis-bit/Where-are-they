@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { arrivalDisplay, formatAge, formatClockTime, isLate } from './display.js';
-import { MINUTE, NOW, enRoute, participant, position } from './test-helpers.js';
+import { arrivalDisplay, formatAge, formatClockTime, isLate } from './display';
+import { MINUTE, NOW, enRoute, participant, position } from './test-helpers';
 
 const ETA_AT = NOW + 8 * MINUTE;
 

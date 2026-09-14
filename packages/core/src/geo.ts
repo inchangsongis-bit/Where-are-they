@@ -1,5 +1,5 @@
-import type { LatLng } from './types.js';
-import { APPROACH_RADIUS_M, ARRIVAL_RADIUS_M } from './constants.js';
+import type { LatLng } from './types';
+import { APPROACH_RADIUS_M, ARRIVAL_RADIUS_M } from './constants';
 
 const EARTH_RADIUS_M = 6_371_008.8;
 

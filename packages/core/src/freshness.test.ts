@@ -3,8 +3,8 @@ import {
   positionFreshness,
   shouldRecomputeEta,
   shouldSendPosition,
-} from './freshness.js';
-import { MINUTE, NOW, position } from './test-helpers.js';
+} from './freshness';
+import { MINUTE, NOW, position } from './test-helpers';
 
 describe('positionFreshness', () => {
   it.each([

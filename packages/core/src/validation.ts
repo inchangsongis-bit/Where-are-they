@@ -3,7 +3,7 @@ import {
   DISPLAY_NAME_MIN,
   MESSAGE_MAX,
   MESSAGE_MIN,
-} from './constants.js';
+} from './constants';
 
 export type Validated<T> =
   | { ok: true; value: T }

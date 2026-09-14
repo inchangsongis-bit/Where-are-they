@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { everyoneHereBy, sortRoster, summarise } from './roster.js';
-import { MINUTE, NOW, enRoute, participant } from './test-helpers.js';
+import { everyoneHereBy, sortRoster, summarise } from './roster';
+import { MINUTE, NOW, enRoute, participant } from './test-helpers';
 
 const names = (list: { displayName: string }[]) => list.map((p) => p.displayName);
 

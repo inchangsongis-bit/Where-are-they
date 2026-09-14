@@ -1,5 +1,5 @@
-import type { LatLng, Position } from './types.js';
-import { distanceM } from './geo.js';
+import type { LatLng, Position } from './types';
+import { distanceM } from './geo';
 import {
   ETA_RECOMPUTE_DISTANCE_M,
   MIN_ETA_INTERVAL_MS,
@@ -7,7 +7,7 @@ import {
   MIN_POSITION_INTERVAL_MS,
   POSITION_EXPIRED_AFTER_MS,
   POSITION_STALE_AFTER_MS,
-} from './constants.js';
+} from './constants';
 
 /**
  * FR-11 — how much a position can still be trusted.

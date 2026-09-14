@@ -16,21 +16,25 @@ cp .env.example .env.local   # then fill it in
 ## Checks
 
 ```bash
-pnpm check      # typecheck + unit tests across the workspace
-pnpm test       # unit tests only
+pnpm verify   # everything: typecheck, migrations, schema assertions, all tests
+pnpm smoke    # boots the built app and walks the flow over real HTTP
+pnpm test     # unit + integration tests (integration skips without a database)
 pnpm typecheck
-pnpm db:test    # apply migrations to a throwaway Postgres and assert the schema
+pnpm db:test  # migrations + schema assertions only
 ```
 
-`pnpm db:test` starts its own cluster under `.tmp/pgdata` and tears it down
-afterwards. To run against an existing scratch database instead:
+`pnpm verify` and `pnpm smoke` start their own throwaway PostgreSQL under
+`.tmp/pgdata` and tear it down afterwards, so neither needs any credentials.
+To run against an existing scratch database instead:
 
 ```bash
-DATABASE_URL=postgres://... pnpm db:test
+DATABASE_URL=postgres://... pnpm verify
 ```
 
-Never point it at a database you care about — the assertions insert and delete
-freely.
+Never point that at a database you care about — the suites truncate freely.
+
+Integration tests **skip loudly** when `DATABASE_URL` is unset rather than
+passing quietly, so a green run with no database is visibly a partial run.
 
 ## Layout
 
@@ -48,6 +52,13 @@ and the web page ever disagree about whether an ETA is stale, or about the
 order people appear in, the group stops trusting both. So every rule that
 both surfaces need lives in `packages/core` and is imported, never retyped —
 and every one of those rules has a test.
+
+## Why `pg` and not `supabase-js`
+
+Supabase is Postgres, so one connection string reaches both a throwaway local
+cluster and the real project. Talking to it with `pg` means every query and
+every route handler is testable here, with no account and no network. The
+Supabase client comes in at R1.5, where Realtime genuinely needs it.
 
 ## Database access in R1
 

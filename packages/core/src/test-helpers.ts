@@ -1,4 +1,4 @@
-import type { Participant, Position } from './types.js';
+import type { Participant, Position } from './types';
 
 export const MINUTE = 60_000;
 export const NOW = Date.UTC(2026, 8, 10, 18, 30, 0); // 18:30 UTC

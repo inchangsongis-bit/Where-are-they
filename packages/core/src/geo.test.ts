@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { distanceM, isAtVenue, roundPosition, trackingTier } from './geo.js';
-import { ARRIVAL_RADIUS_M } from './constants.js';
+import { distanceM, isAtVenue, roundPosition, trackingTier } from './geo';
+import { ARRIVAL_RADIUS_M } from './constants';
 
 const VENUE = { lat: 40.7188, lng: -73.9938 }; // Kisa Izakaya, 118 Bowery
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { generateEventToken, inviteUrl, isValidEventToken } from './tokens.js';
+import { generateEventToken, inviteUrl, isValidEventToken } from './tokens';
 
 describe('generateEventToken', () => {
   it('produces a 22-character URL-safe token', () => {
