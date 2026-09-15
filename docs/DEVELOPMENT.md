@@ -71,6 +71,21 @@ and `authenticated` roles outright.
 This is deliberate, and it changes in R2: once accounts exist, real per-role
 policies replace it and the service-role key stops being the only way in.
 
+## Routing and ETAs
+
+`packages/core` carries a straight-line estimator, and `apps/web/src/lib/routing.ts`
+wraps it behind a provider interface alongside Mapbox.
+
+With no `MAPBOX_TOKEN` set, the app uses the straight-line estimator — an
+assumed urban speed plus a detour factor, labelled `straight_line` all the way
+to the UI so nobody mistakes it for a routed answer. That is why the whole ETA
+path is testable here without a Mapbox account.
+
+With a token set, it uses the Mapbox Matrix API, grouped into one call per
+travel mode rather than one per person, because routing is the only metered
+cost in the product. If Mapbox fails or returns a non-Ok code, it degrades to
+the estimate rather than showing the group nothing.
+
 ## Applying migrations to Supabase
 
 ```bash

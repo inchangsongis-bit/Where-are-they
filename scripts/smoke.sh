@@ -28,11 +28,15 @@ done
 
 fail() { echo "SMOKE FAILED: $1"; exit 1; }
 
-echo "==> create an event"
+# Inside the check-in window (FR-9 opens it two hours before the start), so the
+# smoke can exercise the whole flow rather than stopping at a correct refusal.
+starts_at=$(date -u -d '+45 minutes' +%Y-%m-%dT%H:%M:%SZ)
+
+echo "==> create an event (starts $starts_at)"
 created=$(curl -fsS -X POST "http://127.0.0.1:$port/api/events" \
   -H 'content-type: application/json' \
   -d '{"title":"Dinner at Kisa","placeName":"Kisa Izakaya","placeAddress":"118 Bowery",
-       "lat":40.7188,"lng":-73.9938,"startsAt":"2030-01-01T19:30:00Z",
+       "lat":40.7188,"lng":-73.9938,"startsAt":"'"$starts_at"'",
        "timezone":"America/New_York","organizerName":"Ana"}')
 token=$(printf '%s' "$created" | sed -n 's/.*"token":"\([^"]*\)".*/\1/p')
 [[ -n "$token" ]] || fail "no token in $created"
@@ -77,6 +81,41 @@ echo "==> an unknown token is a 404, not a hint"
 code=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$port/api/events/AAAAAAAAAAAAAAAAAAAAAA")
 [[ "$code" == "404" ]] || fail "expected 404 for an unknown token, got $code"
 
+echo "==> check in and share a position"
+curl -fsS -b "$jar" -X PATCH "http://127.0.0.1:$port/api/events/$token/me" \
+  -H 'content-type: application/json' -d '{"status":"en_route","sharing":true}' >/dev/null
+pos=$(curl -fsS -b "$jar" -X POST "http://127.0.0.1:$port/api/events/$token/me/position" \
+  -H 'content-type: application/json' \
+  -d "{\"lat\":40.7538,\"lng\":-73.9838,\"accuracyM\":12,\"recordedAt\":$(date +%s000),\"source\":\"web\"}")
+grep -q '"accepted":1' <<<"$pos" || fail "position not accepted: $pos"
+grep -q '"etaComputed":true' <<<"$pos" || fail "no ETA computed: $pos"
+
+echo "==> the roster now carries a labelled ETA"
+snapshot=$(curl -fsS "http://127.0.0.1:$port/api/events/$token")
+grep -q '"source":"straight_line"' <<<"$snapshot" \
+  || fail "ETA is not labelled as an estimate: $snapshot"
+grep -q '"onTheWay":1' <<<"$snapshot" || fail "summary did not count anyone en route"
+
+echo "==> positions without a cookie are refused"
+code=$(curl -s -o /dev/null -w '%{http_code}' -X POST \
+  "http://127.0.0.1:$port/api/events/$token/me/position" \
+  -H 'content-type: application/json' \
+  -d '{"lat":40.75,"lng":-73.98,"recordedAt":1}')
+[[ "$code" == "401" ]] || fail "expected 401 posting a position with no cookie, got $code"
+
+echo "==> arriving stops sharing on its own (PS-2)"
+curl -fsS -b "$jar" -X PATCH "http://127.0.0.1:$port/api/events/$token/me" \
+  -H 'content-type: application/json' -d '{"status":"arrived"}' >/dev/null
+snapshot=$(curl -fsS "http://127.0.0.1:$port/api/events/$token")
+python3 - "$snapshot" <<'PYEOF' || fail "arrival did not stop sharing"
+import json, sys
+data = json.loads(sys.argv[1])
+marco = next(p for p in data["participants"] if p["displayName"] == "Marco")
+assert marco["status"] == "arrived", marco
+assert marco["sharing"] is False, marco
+assert marco["eta"] is None, marco
+PYEOF
+
 echo "==> purge requires its secret"
 code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "http://127.0.0.1:$port/api/cron/purge")
 [[ "$code" == "401" ]] || fail "purge allowed without a secret ($code)"
@@ -85,4 +124,4 @@ purged=$(curl -fsS -X POST "http://127.0.0.1:$port/api/cron/purge" \
 grep -q '"eventsDeleted":0' <<<"$purged" || fail "purge deleted a live event: $purged"
 
 echo
-echo "--- smoke passed: create -> invite page -> join -> RSVP -> roster ---"
+echo "--- smoke passed: create -> invite -> join -> RSVP -> check in -> ETA -> arrive ---"

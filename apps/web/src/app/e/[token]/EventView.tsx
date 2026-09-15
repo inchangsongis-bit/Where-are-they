@@ -5,6 +5,7 @@ import {
   sortRoster, summarise, type Participant, type Rsvp,
 } from '@wat/core';
 import { useCallback, useEffect, useState } from 'react';
+import CheckinControls from './CheckinControls';
 
 interface Snapshot {
   event: {
@@ -145,15 +146,21 @@ export default function EventView({ initial }: { initial: Snapshot }) {
           </button>
         </form>
       ) : (
-        <div className="rsvp" role="group" aria-label="Your RSVP">
-          {(Object.keys(RSVP_LABELS) as Array<keyof typeof RSVP_LABELS>).map((value) => (
-            <button key={value} type="button"
-              aria-pressed={me?.rsvp === value}
-              onClick={() => void setRsvp(value)}>
-              {RSVP_LABELS[value]}
-            </button>
-          ))}
-        </div>
+        <>
+          <div className="rsvp" role="group" aria-label="Your RSVP">
+            {(Object.keys(RSVP_LABELS) as Array<keyof typeof RSVP_LABELS>).map((value) => (
+              <button key={value} type="button"
+                aria-pressed={me?.rsvp === value}
+                onClick={() => void setRsvp(value)}>
+                {RSVP_LABELS[value]}
+              </button>
+            ))}
+          </div>
+
+          {me !== null && me.rsvp !== 'cant' && (
+            <CheckinControls token={token} me={me} onChanged={() => void refresh()} />
+          )}
+        </>
       )}
 
       <div className="card" style={{ marginTop: 20 }}>
@@ -190,6 +197,17 @@ function Row({
 }) {
   const display = arrivalDisplay(participant, now);
   const late = isLate(participant, startsAt, now);
+
+  // FR-11 — say how someone is being tracked, so a gap in their updates reads
+  // as expected rather than broken.
+  const parts: string[] = [];
+  if (participant.isOrganizer) parts.push('organizer');
+  if (participant.status === 'en_route') {
+    parts.push(participant.travelMode);
+    parts.push(participant.sharing ? 'sharing' : 'not sharing');
+  }
+  if (late) parts.push('late');
+  const subtitle = parts.join(' · ');
 
   let eta: React.ReactNode;
   switch (display.kind) {
@@ -230,14 +248,8 @@ function Row({
         {participant.displayName.slice(0, 1).toUpperCase()}
       </div>
       <div>
-        <div className="name">
-          {participant.displayName}
-          {participant.isOrganizer && ' ·'}
-        </div>
-        <div className="sub">
-          {participant.isOrganizer ? 'organizer' : '—'}
-          {late && ' · late'}
-        </div>
+        <div className="name">{participant.displayName}</div>
+        {subtitle !== '' && <div className="sub">{subtitle}</div>}
       </div>
       <div className="right">
         {eta}

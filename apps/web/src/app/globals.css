@@ -123,3 +123,30 @@ button.secondary {
 
 .error { color: var(--signal); font-size: 14px; margin: 0 0 14px; }
 .hint { font-family: var(--mono); font-size: 11px; color: var(--ink-faint); }
+
+/* --- check-in ------------------------------------------------------------ */
+
+.checkin { display: flex; flex-direction: column; gap: 10px; margin: 18px 0; }
+.checkin select { margin-bottom: 0; }
+.checkin label { margin-bottom: 0; }
+
+/* PS-2: whenever location is being shared, the person sharing it can see so. */
+.sharing-on {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--go-soft);
+  color: var(--go);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.here {
+  margin: 0; padding: 12px; border-radius: 8px;
+  background: var(--go-soft); color: var(--go); font-weight: 600;
+}
+
+.manual { display: flex; flex-direction: column; gap: 6px; }
+.manual-row { display: flex; gap: 8px; align-items: center; }
+.manual-row input { width: 80px; margin-bottom: 0; }
+.manual-row button { flex: 1; }

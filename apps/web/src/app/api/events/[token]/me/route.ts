@@ -1,14 +1,20 @@
 import { validateDisplayName } from '@wat/core';
-import type { Rsvp, TravelMode } from '@wat/core';
-import { leaveEvent, updateParticipant } from '@/lib/events';
+import type { ParticipantStatus, Rsvp, TravelMode } from '@wat/core';
+import { leaveEvent, listParticipants, updateParticipant } from '@/lib/events';
 import { badRequest } from '@/lib/errors';
 import { handle, json, readJson, requireEvent, requireParticipant } from '@/lib/http';
-import { asObject, optionalString, requireEnum } from '@/lib/parse';
+import { asObject, optionalString, requireEnum, requireTimestamp } from '@/lib/parse';
+import { setCheckinState } from '@/lib/tracking';
 
 const RSVPS: readonly Rsvp[] = ['pending', 'going', 'maybe', 'cant'];
 const MODES: readonly TravelMode[] = ['driving', 'walking', 'transit', 'cycling'];
+// FR-9/FR-14 — a client may check in, stop, or declare itself here. It may not
+// set 'not_started' backwards out of 'arrived': arrival is sticky.
+const SETTABLE_STATUSES: readonly ParticipantStatus[] = [
+  'not_started', 'en_route', 'arrived',
+];
 
-/** FR-3 — RSVP, rename, travel mode. Only ever your own row. */
+/** FR-3/FR-9/FR-14 — RSVP, rename, travel mode, check-in. Only your own row. */
 export function PATCH(
   request: Request,
   context: { params: Promise<{ token: string }> },
@@ -32,11 +38,44 @@ export function PATCH(
       displayName = validated.value;
     }
 
-    if (rsvp === undefined && travelMode === undefined && displayName === undefined) {
-      throw badRequest('Nothing to change.');
+    const status =
+      body['status'] === undefined
+        ? undefined
+        : requireEnum(body, 'status', SETTABLE_STATUSES);
+
+    const sharing = body['sharing'] === undefined ? undefined : body['sharing'] === true;
+
+    let selfReportedEta: number | null | undefined;
+    if (body['selfReportedEta'] === null) selfReportedEta = null;
+    else if (body['selfReportedEta'] !== undefined) {
+      selfReportedEta = requireTimestamp(body, 'selfReportedEta');
     }
 
-    const updated = await updateParticipant(me.id, { rsvp, travelMode, displayName });
+    const nothingToDo =
+      rsvp === undefined && travelMode === undefined && displayName === undefined &&
+      status === undefined && sharing === undefined && selfReportedEta === undefined;
+    if (nothingToDo) throw badRequest('Nothing to change.');
+
+    // FR-14 — arrival is sticky, so it cannot be undone by a later request.
+    if (me.status === 'arrived' && status !== undefined && status !== 'arrived') {
+      throw badRequest('You are already marked as here.', 'already_arrived');
+    }
+
+    if (rsvp !== undefined || travelMode !== undefined || displayName !== undefined) {
+      await updateParticipant(me.id, { rsvp, travelMode, displayName });
+    }
+
+    if (status !== undefined || sharing !== undefined || selfReportedEta !== undefined) {
+      await setCheckinState({
+        participantId: me.id, event, status, sharing, selfReportedEta,
+        source: status === 'en_route' && sharing === false ? 'manual' : undefined,
+      });
+    }
+
+    const roster = await listParticipants(event.id);
+    const updated = roster.find((p) => p.id === me.id);
+    if (updated === undefined) throw badRequest('You are no longer in this event.');
+
     return json({ participant: updated });
   });
 }
