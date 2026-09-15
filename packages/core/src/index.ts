@@ -10,3 +10,4 @@ export * from './lifecycle';
 export * from './arrival';
 export * from './eta';
 export * from './tracking';
+export * from './map';

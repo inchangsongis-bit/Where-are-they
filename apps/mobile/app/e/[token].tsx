@@ -9,6 +9,7 @@ import {
   ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { api, type Snapshot } from '../../src/api';
+import EventMap from '../../src/components/EventMap';
 import { loadSecret, saveSecret } from '../../src/storage';
 import {
   currentPermissionLevel, requestPermissions, startTracking, stopTracking,
@@ -27,6 +28,8 @@ export default function EventScreen() {
   const [permission, setPermission] = useState<PermissionLevel>('denied');
   const [showDisclosure, setShowDisclosure] = useState(false);
   const [now, setNow] = useState(() => Date.now());
+  const [tab, setTab] = useState<'list' | 'map'>('list');
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -200,26 +203,58 @@ export default function EventScreen() {
         </View>
       )}
 
+      <View style={styles.tabs}>
+        <Pressable
+          style={[styles.tab, tab === 'list' && styles.tabActive]}
+          onPress={() => setTab('list')}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: tab === 'list' }}>
+          <Text style={tab === 'list' ? styles.tabTextActive : styles.tabText}>List</Text>
+        </Pressable>
+        <Pressable
+          style={[styles.tab, tab === 'map' && styles.tabActive]}
+          onPress={() => setTab('map')}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: tab === 'map' }}>
+          <Text style={tab === 'map' ? styles.tabTextActive : styles.tabText}>Map</Text>
+        </Pressable>
+      </View>
+
       <Text style={styles.tally}>
         {summary.here} here · {summary.onTheWay} on the way ·{' '}
         {summary.notStarted} not started
       </Text>
 
-      {roster.map((participant) => (
-        <Row key={participant.id} participant={participant} now={now}
-          timezone={event.timezone} startsAt={event.startsAt} />
-      ))}
+      {tab === 'map' ? (
+        <EventMap
+          participants={participants}
+          venue={{ name: event.venue.name, lat: event.venue.lat, lng: event.venue.lng }}
+          selectedId={selectedId}
+          onSelect={setSelectedId}
+          now={now}
+        />
+      ) : (
+        roster.map((participant) => (
+          <Row key={participant.id} participant={participant} now={now}
+            timezone={event.timezone} startsAt={event.startsAt}
+            selected={participant.id === selectedId}
+            onSelect={() =>
+              setSelectedId(selectedId === participant.id ? null : participant.id)} />
+        ))
+      )}
     </ScrollView>
   );
 }
 
 function Row({
-  participant, now, timezone, startsAt,
+  participant, now, timezone, startsAt, selected, onSelect,
 }: {
   participant: Participant;
   now: number;
   timezone: string;
   startsAt: number;
+  selected: boolean;
+  onSelect: () => void;
 }) {
   const display = arrivalDisplay(participant, now);
   const late = isLate(participant, startsAt, now);
@@ -237,7 +272,7 @@ function Row({
     (display.kind === 'eta' && display.stale);
 
   return (
-    <View style={styles.row}>
+    <Pressable style={[styles.row, selected && styles.rowSelected]} onPress={onSelect}>
       <View style={[styles.avatar, { backgroundColor: participant.color }]}>
         <Text style={styles.avatarText}>
           {participant.displayName.slice(0, 1).toUpperCase()}
@@ -253,7 +288,7 @@ function Row({
         )}
       </View>
       <Text style={[styles.eta, faded && styles.etaFaded]}>{eta}</Text>
-    </View>
+    </Pressable>
   );
 }
 
@@ -289,6 +324,15 @@ const styles = StyleSheet.create({
   },
   error: { color: '#B24A17', fontSize: 14 },
   tally: { fontSize: 13, opacity: 0.7, marginTop: 14 },
+  tabs: { flexDirection: 'row', gap: 8, marginTop: 18 },
+  tab: {
+    flex: 1, paddingVertical: 10, borderRadius: 8, alignItems: 'center',
+    borderWidth: 1, borderColor: '#D3DAD5', minHeight: 44, justifyContent: 'center',
+  },
+  tabActive: { backgroundColor: '#0B6E63', borderColor: '#0B6E63' },
+  tabText: { color: '#53615D', fontWeight: '600', fontSize: 14 },
+  tabTextActive: { color: '#fff', fontWeight: '600', fontSize: 14 },
+  rowSelected: { backgroundColor: '#F2F5F1' },
   row: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#E2E7E2',

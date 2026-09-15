@@ -10,9 +10,13 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "app.whereareithey",
-      "associatedDomains": ["applinks:whereareithey.app"],
+      "associatedDomains": [
+        "applinks:whereareithey.app"
+      ],
       "infoPlist": {
-        "UIBackgroundModes": ["location"],
+        "UIBackgroundModes": [
+          "location"
+        ],
         "NSLocationWhenInUseUsageDescription": "So your dinner group can see your ETA while you're on your way.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "So your group keeps seeing your ETA with your phone in your pocket. Sharing runs only while you're checked in and stops by itself when you arrive.",
         "NSLocationAlwaysUsageDescription": "So your group keeps seeing your ETA with your phone in your pocket. Sharing runs only while you're checked in and stops by itself when you arrive."
@@ -24,8 +28,17 @@
         {
           "action": "VIEW",
           "autoVerify": true,
-          "data": [{ "scheme": "https", "host": "whereareithey.app", "pathPrefix": "/e" }],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "data": [
+            {
+              "scheme": "https",
+              "host": "whereareithey.app",
+              "pathPrefix": "/e"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ],
       "permissions": [
@@ -47,7 +60,8 @@
           "isAndroidBackgroundLocationEnabled": true,
           "isAndroidForegroundServiceEnabled": true
         }
-      ]
+      ],
+      "@rnmapbox/maps"
     ],
     "extra": {
       "apiBaseUrl": "https://whereareithey.app"

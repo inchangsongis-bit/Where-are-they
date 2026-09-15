@@ -6,12 +6,13 @@ import {
 } from '@wat/core';
 import { useCallback, useEffect, useState } from 'react';
 import CheckinControls from './CheckinControls';
+import MapPanel from './MapPanel';
 
 interface Snapshot {
   event: {
     token: string;
     title: string;
-    venue: { name: string; address: string };
+    venue: { name: string; address: string; lat: number; lng: number };
     startsAt: number;
     timezone: string;
     status: 'active' | 'cancelled';
@@ -39,6 +40,8 @@ export default function EventView({ initial }: { initial: Snapshot }) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [now, setNow] = useState(() => Date.now());
+  const [tab, setTab] = useState<'list' | 'map'>('list');
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const token = snapshot.event.token;
   const joined = snapshot.me !== null;
@@ -163,7 +166,14 @@ export default function EventView({ initial }: { initial: Snapshot }) {
         </>
       )}
 
-      <div className="card" style={{ marginTop: 20 }}>
+      <div className="tabs" role="tablist" aria-label="Views">
+        <button type="button" role="tab" aria-selected={tab === 'list'}
+          onClick={() => setTab('list')}>List</button>
+        <button type="button" role="tab" aria-selected={tab === 'map'}
+          onClick={() => setTab('map')}>Map</button>
+      </div>
+
+      <div className="card" style={{ marginTop: 12 }}>
         <div className="card-head">
           {allHereBy !== null && (
             <div>
@@ -178,22 +188,32 @@ export default function EventView({ initial }: { initial: Snapshot }) {
           </div>
         </div>
 
-        {roster.map((participant) => (
-          <Row key={participant.id} participant={participant}
-            timezone={timezone} startsAt={event.startsAt} now={now} />
-        ))}
+        {tab === 'map' ? (
+          <MapPanel participants={participants} venue={event.venue}
+            selectedId={selectedId} onSelect={setSelectedId} />
+        ) : (
+          roster.map((participant) => (
+            <Row key={participant.id} participant={participant}
+              timezone={timezone} startsAt={event.startsAt} now={now}
+              selected={participant.id === selectedId}
+              onSelect={() =>
+                setSelectedId(selectedId === participant.id ? null : participant.id)} />
+          ))
+        )}
       </div>
     </main>
   );
 }
 
 function Row({
-  participant, timezone, startsAt, now,
+  participant, timezone, startsAt, now, selected, onSelect,
 }: {
   participant: Participant;
   timezone: string;
   startsAt: number;
   now: number;
+  selected: boolean;
+  onSelect: () => void;
 }) {
   const display = arrivalDisplay(participant, now);
   const late = isLate(participant, startsAt, now);
@@ -242,7 +262,14 @@ function Row({
     : { className: 'chip chip-idle', label: 'No answer' };
 
   return (
-    <div className="row">
+    <div className={selected ? 'row selected' : 'row'} onClick={onSelect}
+      role="button" tabIndex={0}
+      onKeyDown={(keyEvent) => {
+        if (keyEvent.key === 'Enter' || keyEvent.key === ' ') {
+          keyEvent.preventDefault();
+          onSelect();
+        }
+      }}>
       <div className="avatar" style={{ background: participant.color }}
         aria-hidden="true">
         {participant.displayName.slice(0, 1).toUpperCase()}

@@ -110,6 +110,29 @@ Both stores require that disclosure before the system prompt, and Google Play
 additionally requires a declaration form and a demo video — start that during
 this phase, not at submission.
 
+## The map
+
+`packages/core/src/map.ts` decides what goes on the map — which dots to draw
+and how to frame them — and both surfaces import it, so they cannot disagree
+about whether a position is worth believing. The map inherits the list's
+staleness rules exactly: faded at two minutes, gone at ten. A dot sitting
+confidently on a street corner is a stronger claim than a line of text, so if
+anything it should expire sooner.
+
+No route lines in v1: six overlapping polylines is noise, not information.
+
+**Two different Mapbox tokens are involved**, which is a common first-build
+trip-up:
+
+| Token | Used by | Where |
+| --- | --- | --- |
+| Public (`pk.…`) | The running app, at runtime | `NEXT_PUBLIC_MAPBOX_TOKEN`, `EXPO_PUBLIC_MAPBOX_TOKEN` |
+| Download (`sk.…`) | The native build, fetching the Mapbox SDK | `RNMAPBOX_MAPS_DOWNLOAD_TOKEN` |
+
+Without the public token both surfaces show a panel saying so and point at the
+list, rather than rendering a grey rectangle. Without the download token a
+native build fails at dependency resolution, before anything runs.
+
 ## Routing and ETAs
 
 `packages/core` carries a straight-line estimator, and `apps/web/src/lib/routing.ts`

@@ -38,7 +38,7 @@ export default async function EventPage({
         event: {
           token: event.token,
           title: event.title,
-          venue: { name: event.venue.name, address: event.venue.address },
+          venue: event.venue,
           startsAt: event.startsAt,
           timezone: event.timezone,
           status: event.status,

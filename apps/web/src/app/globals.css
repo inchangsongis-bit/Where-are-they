@@ -150,3 +150,45 @@ button.secondary {
 .manual-row { display: flex; gap: 8px; align-items: center; }
 .manual-row input { width: 80px; margin-bottom: 0; }
 .manual-row button { flex: 1; }
+
+/* --- tabs and map -------------------------------------------------------- */
+
+.tabs { display: flex; gap: 8px; margin-top: 20px; }
+.tabs button {
+  flex: 1; min-height: 40px; padding: 8px 12px; font-size: 14px;
+  background: transparent; color: var(--ink-soft); border: 1px solid var(--rule);
+}
+.tabs button[aria-selected='true'] {
+  background: var(--accent); color: var(--bg); border-color: var(--accent);
+}
+
+.row { cursor: pointer; }
+.row.selected { background: var(--surface-2); }
+.row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+.map { height: 420px; width: 100%; }
+
+.map-missing { padding: 24px 16px; }
+.map-missing p { font-size: 14px; }
+.map-missing code {
+  font-family: var(--mono); font-size: 12px;
+  background: var(--surface-2); padding: 1px 5px; border-radius: 3px;
+}
+
+/* Marker elements are created imperatively by Mapbox, so they are styled here
+   rather than in a component. */
+.map-dot {
+  width: 28px; height: 28px; border-radius: 50%;
+  border: 2px solid var(--surface); padding: 0;
+  color: #fff; font-weight: 700; font-size: 12px; line-height: 1;
+  display: grid; place-items: center; cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+.map-dot.stale { opacity: 0.45; }
+.map-dot.selected { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+.map-venue {
+  width: 18px; height: 18px; border-radius: 3px;
+  background: var(--ink); border: 3px solid var(--surface);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
