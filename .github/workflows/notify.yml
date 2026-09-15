@@ -1,0 +1,38 @@
+# FR-18 — the notify tick.
+#
+# Vercel's Hobby plan runs crons once per day, which is useless for "Priya is
+# 5 minutes away". This runs the tick every five minutes for free instead.
+#
+# If you move to Vercel Pro, delete this and add the tick to vercel.json's
+# crons with a "* * * * *" schedule — a one-minute tick catches the proximity
+# window reliably, where five minutes can miss someone who goes from seven
+# minutes out to arrived between ticks.
+#
+# Requires two repository secrets: APP_URL and CRON_SECRET.
+name: Notify tick
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run the notify tick
+        run: |
+          if [ -z "${{ secrets.APP_URL }}" ] || [ -z "${{ secrets.CRON_SECRET }}" ]; then
+            echo "APP_URL or CRON_SECRET is not set; skipping."
+            exit 0
+          fi
+          response=$(curl -sS -w '\n%{http_code}' -X POST \
+            "${{ secrets.APP_URL }}/api/cron/notify" \
+            -H "authorization: Bearer ${{ secrets.CRON_SECRET }}")
+          body=$(echo "$response" | head -n -1)
+          code=$(echo "$response" | tail -n 1)
+          echo "$body"
+          if [ "$code" != "200" ]; then
+            echo "Notify tick failed with HTTP $code"
+            exit 1
+          fi

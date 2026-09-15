@@ -1,0 +1,56 @@
+# Everything scripts/verify.sh runs locally, on every push.
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: wat_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/wat_test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Migrations and schema assertions
+        run: |
+          node scripts/migrate.mjs
+          psql "$DATABASE_URL" -q -v ON_ERROR_STOP=1 -f supabase/tests/schema_test.sql \
+            | grep -E 'all schema|FAILED|ERROR'
+
+      - name: Tests
+        run: pnpm test
+
+      - name: Build
+        run: pnpm --filter @wat/web build

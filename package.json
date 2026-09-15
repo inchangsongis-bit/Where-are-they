@@ -14,9 +14,13 @@
     "check": "pnpm typecheck && pnpm test",
     "db:test": "bash scripts/with-postgres.sh bash -c 'for m in supabase/migrations/*.sql; do psql \"$DATABASE_URL\" -q -v ON_ERROR_STOP=1 -f \"$m\"; done; psql \"$DATABASE_URL\" -q -v ON_ERROR_STOP=1 -f supabase/tests/schema_test.sql'",
     "verify": "bash scripts/with-postgres.sh bash scripts/verify.sh",
-    "smoke": "bash scripts/with-postgres.sh bash scripts/smoke.sh"
+    "smoke": "bash scripts/with-postgres.sh bash scripts/smoke.sh",
+    "migrate": "node scripts/migrate.mjs",
+    "migrate:dry": "node scripts/migrate.mjs --dry-run",
+    "preflight": "node scripts/preflight.mjs"
   },
   "devDependencies": {
+    "pg": "^8.23.0",
     "typescript": "^5.7.2"
   }
 }
