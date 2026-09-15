@@ -130,6 +130,19 @@ export default function EventView({ initial }: { initial: Snapshot }) {
     }
   }
 
+  async function nudge(participantId: string) {
+    try {
+      await fetch(`/api/events/${token}/nudge`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ participantId }),
+      });
+      await refresh();
+    } catch {
+      // A nudge that did not send is not worth an error dialog.
+    }
+  }
+
   const { event, participants } = snapshot;
   const timezone = event.timezone;
   const roster = sortRoster(participants, now);
@@ -222,6 +235,11 @@ export default function EventView({ initial }: { initial: Snapshot }) {
             <Row key={participant.id} participant={participant}
               timezone={timezone} startsAt={event.startsAt} now={now}
               selected={participant.id === selectedId}
+              canNudge={
+                joined && participant.id !== snapshot.me?.id &&
+                participant.status === 'not_started' && participant.rsvp !== 'cant'
+              }
+              onNudge={() => void nudge(participant.id)}
               onSelect={() =>
                 setSelectedId(selectedId === participant.id ? null : participant.id)} />
           ))
@@ -232,7 +250,7 @@ export default function EventView({ initial }: { initial: Snapshot }) {
 }
 
 function Row({
-  participant, timezone, startsAt, now, selected, onSelect,
+  participant, timezone, startsAt, now, selected, onSelect, canNudge, onNudge,
 }: {
   participant: Participant;
   timezone: string;
@@ -240,6 +258,8 @@ function Row({
   now: number;
   selected: boolean;
   onSelect: () => void;
+  canNudge: boolean;
+  onNudge: () => void;
 }) {
   const display = arrivalDisplay(participant, now);
   const late = isLate(participant, startsAt, now);
@@ -305,7 +325,17 @@ function Row({
         {subtitle !== '' && <div className="sub">{subtitle}</div>}
       </div>
       <div className="right">
-        {eta}
+        {canNudge ? (
+          <button type="button" className="nudge"
+            onClick={(clickEvent) => {
+              clickEvent.stopPropagation();
+              onNudge();
+            }}>
+            Nudge
+          </button>
+        ) : (
+          eta
+        )}
         <br />
         <span className={chip.className}>{chip.label}</span>
       </div>

@@ -52,6 +52,8 @@ export interface Participant {
   /** Manual fallback when location is denied or unavailable (FR-9). */
   selfReportedEta: number | null;
   arrivedAt: number | null;
+  /** FR-18 — per-event notification mute. */
+  muted: boolean;
   lastPosition: Position | null;
   eta: Eta | null;
 }

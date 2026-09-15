@@ -1,5 +1,6 @@
 import { validateDisplayName } from '@wat/core';
 import type { ParticipantStatus, Rsvp, TravelMode } from '@wat/core';
+import { query } from '@/lib/db';
 import { leaveEvent, listParticipants, updateParticipant } from '@/lib/events';
 import { badRequest } from '@/lib/errors';
 import { handle, json, readJson, requireEvent, requireParticipant } from '@/lib/http';
@@ -44,6 +45,7 @@ export function PATCH(
         : requireEnum(body, 'status', SETTABLE_STATUSES);
 
     const sharing = body['sharing'] === undefined ? undefined : body['sharing'] === true;
+    const muted = body['muted'] === undefined ? undefined : body['muted'] === true;
 
     let selfReportedEta: number | null | undefined;
     if (body['selfReportedEta'] === null) selfReportedEta = null;
@@ -53,7 +55,8 @@ export function PATCH(
 
     const nothingToDo =
       rsvp === undefined && travelMode === undefined && displayName === undefined &&
-      status === undefined && sharing === undefined && selfReportedEta === undefined;
+      status === undefined && sharing === undefined && selfReportedEta === undefined &&
+      muted === undefined;
     if (nothingToDo) throw badRequest('Nothing to change.');
 
     // FR-14 — arrival is sticky, so it cannot be undone by a later request.
@@ -70,6 +73,10 @@ export function PATCH(
         participantId: me.id, event, status, sharing, selfReportedEta,
         source: status === 'en_route' && sharing === false ? 'manual' : undefined,
       });
+    }
+
+    if (muted !== undefined) {
+      await query('update participants set muted = $2 where id = $1', [me.id, muted]);
     }
 
     const roster = await listParticipants(event.id);

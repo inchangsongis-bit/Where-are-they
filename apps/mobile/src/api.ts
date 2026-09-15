@@ -94,6 +94,16 @@ export const api = {
       method: 'POST', body: payload, secret,
     }),
 
+  registerPushToken: (token: string, secret: string, pushToken: string) =>
+    request<{ ok: true; registered: boolean }>(`/api/events/${token}/me/push-token`, {
+      method: 'POST', body: { pushToken }, secret,
+    }),
+
+  nudge: (token: string, secret: string, participantId: string) =>
+    request<{ nudged: boolean }>(`/api/events/${token}/nudge`, {
+      method: 'POST', body: { participantId }, secret,
+    }),
+
   markRead: (token: string, secret: string) =>
     request<{ ok: true }>(`/api/events/${token}/me/read`, {
       method: 'POST', secret,

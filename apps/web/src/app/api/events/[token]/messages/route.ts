@@ -9,6 +9,7 @@ import { asObject, optionalString } from '@/lib/parse';
 import { enforce } from '@/lib/ratelimit';
 import { hashSessionSecret } from '@/lib/session';
 import { setCheckinState } from '@/lib/tracking';
+import { notifyMessage } from '@/lib/notify';
 
 /**
  * FR-15 — the thread is readable without joining, because the invite page
@@ -81,6 +82,9 @@ export function POST(
         eventId: event.id, participantId: me.id,
         authorName: me.displayName, body: reply.message,
       });
+      await notifyMessage({
+        eventId: event.id, eventTitle: event.title, authorId: me.id,
+      });
       return json({ entry }, 201);
     }
 
@@ -90,6 +94,9 @@ export function POST(
     const entry = await postMessage({
       eventId: event.id, participantId: me.id,
       authorName: me.displayName, body: validated.value,
+    });
+    await notifyMessage({
+      eventId: event.id, eventTitle: event.title, authorId: me.id,
     });
     return json({ entry }, 201);
   });

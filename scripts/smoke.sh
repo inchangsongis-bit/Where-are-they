@@ -145,6 +145,19 @@ code=$(curl -s -o /dev/null -w '%{http_code}' -X POST \
   -H 'content-type: application/json' -d '{"body":"hello"}')
 [[ "$code" == "401" ]] || fail "expected 401 posting with no cookie, got $code"
 
+echo "==> push token registration and the notify tick"
+curl -fsS -b "$jar" -X POST "http://127.0.0.1:$port/api/events/$token/me/push-token" \
+  -H 'content-type: application/json' \
+  -d '{"pushToken":"ExponentPushToken[smoke]"}' | grep -q '"registered":true' \
+  || fail "push token was not registered"
+
+code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "http://127.0.0.1:$port/api/cron/notify")
+[[ "$code" == "401" ]] || fail "notify tick ran without its secret ($code)"
+
+notified=$(curl -fsS -X POST "http://127.0.0.1:$port/api/cron/notify" \
+  -H "authorization: Bearer smoke-secret")
+grep -q '"events"' <<<"$notified" || fail "notify tick returned nothing: $notified"
+
 echo "==> purge requires its secret"
 code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "http://127.0.0.1:$port/api/cron/purge")
 [[ "$code" == "401" ]] || fail "purge allowed without a secret ($code)"

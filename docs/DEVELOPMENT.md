@@ -110,6 +110,39 @@ Both stores require that disclosure before the system prompt, and Google Play
 additionally requires a declaration form and a demo video — start that during
 this phase, not at submission.
 
+## Notifications
+
+The whole risk of this feature is noise. An app that buzzes six phones every
+time anyone moves gets muted before the second dinner, and a muted app cannot
+tell you that Priya is five minutes away. So every rule in
+`packages/core/src/notifications.ts` is a rule about *not* sending: once per
+subject, never to yourself, never to someone who muted, never for something
+the recipient already knows.
+
+**The dedupe write happens before delivery.** If push is slow or fails, the
+worst case is a notification nobody received. Recording afterwards would risk
+a crash between send and write, which means sending the same thing again on
+the next tick — and repetition is a worse failure than silence here.
+
+**The tick runs over active events**, not off position updates, so "Priya is 5
+minutes away" fires when her ETA crosses the line rather than only when her
+phone happens to report. It is scoped to events inside their check-in window,
+so a calendar full of next month's dinners costs nothing.
+
+Two delivery services sit behind one interface. Expo Push handles native
+(no APNs certificates, no FCM service account — this is why D-1 makes push
+cheaper on native than the web equivalent), and Web Push with VAPID handles
+the browser surface, best effort. A push "token" is an opaque string to the
+rest of the system, and the two kinds are told apart **by shape** rather than
+by a column that could drift out of step with the value beside it.
+
+Nudges are limited by the dedupe ledger rather than by a rate limit: the second
+nudge is not a mistake in timing, it is nagging.
+
+Permission is requested at first check-in on both surfaces, never at launch or
+page load. A refusal on a launch screen is permanent, and by the time someone
+taps "I'm on my way" the notification has an obvious purpose.
+
 ## The feed
 
 `packages/core/src/feed.ts` decides how a system event reads and what the

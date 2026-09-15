@@ -3,6 +3,7 @@
 import type { Participant, TravelMode } from '@wat/core';
 import { useState } from 'react';
 import { useLocationSharing } from './useLocationSharing';
+import { useWebPush } from './useWebPush';
 
 const MODES: { value: TravelMode; label: string }[] = [
   { value: 'driving', label: 'Driving' },
@@ -28,6 +29,7 @@ export default function CheckinControls({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [manualMinutes, setManualMinutes] = useState('20');
+  const push = useWebPush(token);
 
   const sharing = useLocationSharing({
     token,
@@ -81,7 +83,12 @@ export default function CheckinControls({
 
       {me.status === 'not_started' ? (
         <button type="button" disabled={busy}
-          onClick={() => void patch({ status: 'en_route', sharing: true })}>
+          onClick={() => {
+            // FR-18 — ask for notifications here, at the first moment they buy
+            // the user something, never at page load.
+            void push.subscribe();
+            void patch({ status: 'en_route', sharing: true });
+          }}>
           I&rsquo;m on my way
         </button>
       ) : (
@@ -142,6 +149,12 @@ export default function CheckinControls({
             onClick={() => void patch({ status: 'arrived' })}>
             I&rsquo;m here
           </button>
+
+          <label className="mute">
+            <input type="checkbox" checked={me.muted}
+              onChange={(e) => void patch({ muted: e.target.checked })} />
+            Mute notifications for this event
+          </label>
         </>
       )}
     </div>

@@ -48,6 +48,7 @@ interface ParticipantRow {
   sharing: boolean;
   self_reported_eta: Date | null;
   arrived_at: Date | null;
+  muted: boolean;
   lat: number | null;
   lng: number | null;
   accuracy_m: number | null;
@@ -119,6 +120,7 @@ function toParticipant(row: ParticipantRow): Participant {
     sharing: row.sharing,
     selfReportedEta: row.self_reported_eta?.getTime() ?? null,
     arrivedAt: row.arrived_at?.getTime() ?? null,
+    muted: row.muted,
     lastPosition:
       row.lat !== null && row.lng !== null && row.recorded_at !== null
         ? {
@@ -220,7 +222,7 @@ export async function listParticipants(
   const rows = await query<ParticipantRow>(
     `select p.id, p.display_name, p.color, p.is_organizer, p.rsvp, p.status,
             p.travel_mode, p.tracking_source, p.sharing, p.self_reported_eta,
-            p.arrived_at,
+            p.arrived_at, p.muted,
             lp.lat, lp.lng, lp.accuracy_m, lp.recorded_at,
             e.eta_at, e.distance_m as eta_distance_m, e.duration_s as eta_duration_s,
             e.source as eta_source, e.computed_at as eta_computed_at
@@ -241,7 +243,7 @@ export async function findParticipantBySession(
   const row = await queryOne<ParticipantRow>(
     `select p.id, p.display_name, p.color, p.is_organizer, p.rsvp, p.status,
             p.travel_mode, p.tracking_source, p.sharing, p.self_reported_eta,
-            p.arrived_at,
+            p.arrived_at, p.muted,
             lp.lat, lp.lng, lp.accuracy_m, lp.recorded_at,
             e.eta_at, e.distance_m as eta_distance_m, e.duration_s as eta_duration_s,
             e.source as eta_source, e.computed_at as eta_computed_at
@@ -326,7 +328,7 @@ export async function joinEvent(args: {
     const participant = await client.query<ParticipantRow>(
       `select p.id, p.display_name, p.color, p.is_organizer, p.rsvp, p.status,
               p.travel_mode, p.tracking_source, p.sharing, p.self_reported_eta,
-              p.arrived_at,
+              p.arrived_at, p.muted,
               null::double precision as lat, null::double precision as lng,
               null::real as accuracy_m, null::timestamptz as recorded_at,
               null::timestamptz as eta_at, null::integer as eta_distance_m,

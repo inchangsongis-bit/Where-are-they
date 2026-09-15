@@ -26,6 +26,7 @@ export function participant(overrides: Partial<Participant> = {}): Participant {
     sharing: false,
     selfReportedEta: null,
     arrivedAt: null,
+    muted: false,
     lastPosition: null,
     eta: null,
     ...overrides,

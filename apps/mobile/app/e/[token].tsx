@@ -13,6 +13,7 @@ import { api, type Snapshot } from '../../src/api';
 import EventMap from '../../src/components/EventMap';
 import EventFeed from '../../src/components/EventFeed';
 import { loadSecret, saveSecret } from '../../src/storage';
+import { registerForPush } from '../../src/push';
 import {
   currentPermissionLevel, requestPermissions, startTracking, stopTracking,
   type PermissionLevel,
@@ -94,6 +95,13 @@ export default function EventScreen() {
       setShowDisclosure(false);
 
       await api.updateMe(eventToken, secret, { status: 'en_route', sharing: true });
+
+      // FR-18 — ask for notifications at the first moment they buy the user
+      // something, and carry on regardless of the answer.
+      const pushToken = await registerForPush();
+      if (pushToken !== null) {
+        await api.registerPushToken(eventToken, secret, pushToken);
+      }
 
       if (level !== 'denied') {
         const fix = await Location.getCurrentPositionAsync({

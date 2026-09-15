@@ -239,3 +239,14 @@ button.secondary {
   font-family: var(--mono); font-size: 11px; line-height: 18px; text-align: center;
 }
 .tabs button[aria-selected='true'] .tab-badge { background: var(--bg); color: var(--accent); }
+
+.mute {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; font-weight: 400; color: var(--ink-soft); margin-top: 2px;
+}
+.mute input { width: auto; margin: 0; }
+
+.nudge {
+  min-height: 32px; padding: 4px 10px; font-size: 12px;
+  background: transparent; color: var(--accent); border: 1px solid var(--rule);
+}
