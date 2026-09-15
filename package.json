@@ -17,10 +17,13 @@
     "smoke": "bash scripts/with-postgres.sh bash scripts/smoke.sh",
     "migrate": "node scripts/migrate.mjs",
     "migrate:dry": "node scripts/migrate.mjs --dry-run",
-    "preflight": "node scripts/preflight.mjs"
+    "preflight": "node scripts/preflight.mjs",
+    "a11y": "node scripts/a11y.mjs"
   },
   "devDependencies": {
+    "axe-core": "^4.13.0",
     "pg": "^8.23.0",
+    "playwright-core": "^1.63.0",
     "typescript": "^5.7.2"
   }
 }

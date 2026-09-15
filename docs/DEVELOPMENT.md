@@ -110,6 +110,31 @@ Both stores require that disclosure before the system prompt, and Google Play
 additionally requires a declaration form and a demo video — start that during
 this phase, not at submission.
 
+## Accessibility
+
+```bash
+pnpm smoke     # includes the audit, against a live server with real data
+```
+
+The NFR says WCAG 2.1 AA, so `scripts/a11y.mjs` runs axe-core against the
+running app across five states — the invite page as a stranger sees it, the
+create form, and each of the three tabs as a joined participant — and exits
+non-zero on any violation. It runs with **real data in it**, because an empty
+page passes checks that a populated one fails: the first run found eight
+contrast failures that only existed once there were status chips and feed
+timestamps on screen.
+
+Two rules worth keeping in mind when adding UI:
+
+**Colour is decided once, in a token.** The last contrast failure was a
+timestamp with `opacity: 0.75` layered on an already-muted token, which loses
+contrast twice over. Muted text gets a token, not an opacity.
+
+**A row that contains a button must not itself be a button.** Nested
+interactive controls break keyboard order and confuse screen readers. In the
+roster this resolved cleanly, because the rows that carry a Nudge button are
+exactly the rows with nobody on the map to select.
+
 ## Notifications
 
 The whole risk of this feature is noise. An app that buzzes six phones every

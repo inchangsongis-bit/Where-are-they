@@ -165,5 +165,14 @@ purged=$(curl -fsS -X POST "http://127.0.0.1:$port/api/cron/purge" \
   -H "authorization: Bearer smoke-secret")
 grep -q '"eventsDeleted":0' <<<"$purged" || fail "purge deleted a live event: $purged"
 
+# WCAG 2.1 AA (NFR). Runs against the live server with real data in it, since
+# an empty page passes checks that a populated one fails.
+if [[ -f "$repo_root/node_modules/axe-core/axe.min.js" ]] || \
+   node -e "require.resolve('axe-core/axe.min.js')" >/dev/null 2>&1; then
+  echo "==> accessibility audit"
+  BASE="http://127.0.0.1:$port" TOKEN="$token" COOKIE="$(grep "wat_p_$token" "$jar" | awk '{print $7}')" \
+    node "$repo_root/scripts/a11y.mjs" || fail "accessibility violations"
+fi
+
 echo
 echo "--- smoke passed: create -> invite -> join -> RSVP -> check in -> ETA -> arrive -> feed ---"

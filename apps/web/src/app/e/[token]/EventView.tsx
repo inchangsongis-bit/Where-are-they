@@ -307,15 +307,29 @@ function Row({
     : participant.rsvp === 'going' ? { className: 'chip chip-idle', label: 'Going' }
     : { className: 'chip chip-idle', label: 'No answer' };
 
+  // Only someone with a position has a dot to select, and a row carrying a
+  // Nudge button must not also be a button itself — nested interactive
+  // controls break keyboard order and confuse screen readers. Those two rules
+  // agree: not-started rows are exactly the ones that show Nudge.
+  const selectable = !canNudge && participant.status !== 'not_started';
+
+  const interactiveProps = selectable
+    ? {
+        role: 'button' as const,
+        tabIndex: 0,
+        onClick: onSelect,
+        'aria-pressed': selected,
+        onKeyDown: (keyEvent: React.KeyboardEvent) => {
+          if (keyEvent.key === 'Enter' || keyEvent.key === ' ') {
+            keyEvent.preventDefault();
+            onSelect();
+          }
+        },
+      }
+    : {};
+
   return (
-    <div className={selected ? 'row selected' : 'row'} onClick={onSelect}
-      role="button" tabIndex={0}
-      onKeyDown={(keyEvent) => {
-        if (keyEvent.key === 'Enter' || keyEvent.key === ' ') {
-          keyEvent.preventDefault();
-          onSelect();
-        }
-      }}>
+    <div className={selected ? 'row selected' : 'row'} {...interactiveProps}>
       <div className="avatar" style={{ background: participant.color }}
         aria-hidden="true">
         {participant.displayName.slice(0, 1).toUpperCase()}
