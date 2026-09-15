@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import {
   findEventByToken, findParticipantBySession, listParticipants,
 } from '@/lib/events';
+import { lastReadAt, listFeed } from '@/lib/feed';
 import { hashSessionSecret, sessionCookieName } from '@/lib/session';
 import EventView from './EventView';
 
@@ -31,6 +32,8 @@ export default async function EventPage({
       : await findParticipantBySession(event.id, hashSessionSecret(secret));
 
   const participants = await listParticipants(event.id);
+  const entries = await listFeed(event.id);
+  const readAt = me === null ? null : await lastReadAt(me.id);
 
   return (
     <EventView
@@ -45,6 +48,7 @@ export default async function EventPage({
         },
         participants: sortRoster(participants, Date.now()),
         me: me === null ? null : { id: me.id },
+        feed: { entries, lastReadAt: readAt },
       }}
     />
   );

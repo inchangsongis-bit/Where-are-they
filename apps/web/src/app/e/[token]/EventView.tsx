@@ -2,11 +2,13 @@
 
 import {
   arrivalDisplay, everyoneHereBy, formatAge, formatClockTime, isLate,
-  sortRoster, summarise, type Participant, type Rsvp,
+  sortRoster, summarise, unreadCount,
+  type FeedEntry, type Participant, type Rsvp,
 } from '@wat/core';
 import { useCallback, useEffect, useState } from 'react';
 import CheckinControls from './CheckinControls';
 import MapPanel from './MapPanel';
+import FeedPanel from './FeedPanel';
 
 interface Snapshot {
   event: {
@@ -19,6 +21,7 @@ interface Snapshot {
   };
   participants: Participant[];
   me: { id: string } | null;
+  feed: { entries: FeedEntry[]; lastReadAt: number | null };
 }
 
 const RSVP_LABELS: Record<Exclude<Rsvp, 'pending'>, string> = {
@@ -40,7 +43,8 @@ export default function EventView({ initial }: { initial: Snapshot }) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [now, setNow] = useState(() => Date.now());
-  const [tab, setTab] = useState<'list' | 'map'>('list');
+  const [tab, setTab] = useState<'list' | 'map' | 'feed'>('list');
+  const [feed, setFeed] = useState(initial.feed);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const token = snapshot.event.token;
@@ -48,10 +52,19 @@ export default function EventView({ initial }: { initial: Snapshot }) {
 
   const refresh = useCallback(async () => {
     try {
-      const response = await fetch(`/api/events/${token}`, { cache: 'no-store' });
-      if (!response.ok) return;
-      const data = (await response.json()) as Snapshot;
-      setSnapshot(data);
+      const [stateResponse, feedResponse] = await Promise.all([
+        fetch(`/api/events/${token}`, { cache: 'no-store' }),
+        fetch(`/api/events/${token}/messages`, { cache: 'no-store' }),
+      ]);
+      if (stateResponse.ok) {
+        setSnapshot((await stateResponse.json()) as Snapshot);
+      }
+      if (feedResponse.ok) {
+        const data = (await feedResponse.json()) as {
+          entries: FeedEntry[]; lastReadAt: number | null;
+        };
+        setFeed(data);
+      }
     } catch {
       // A failed poll is not worth interrupting anyone over — the list simply
       // keeps showing what it last knew, which is the honest thing to do.
@@ -123,6 +136,8 @@ export default function EventView({ initial }: { initial: Snapshot }) {
   const summary = summarise(participants);
   const allHereBy = everyoneHereBy(participants, now);
   const me = participants.find((p) => p.id === snapshot.me?.id) ?? null;
+  const unread =
+    tab === 'feed' ? 0 : unreadCount(feed.entries, feed.lastReadAt, snapshot.me?.id ?? null);
 
   return (
     <main>
@@ -171,6 +186,13 @@ export default function EventView({ initial }: { initial: Snapshot }) {
           onClick={() => setTab('list')}>List</button>
         <button type="button" role="tab" aria-selected={tab === 'map'}
           onClick={() => setTab('map')}>Map</button>
+        <button type="button" role="tab" aria-selected={tab === 'feed'}
+          onClick={() => setTab('feed')}>
+          Feed
+          {unread > 0 && (
+            <span className="tab-badge" aria-label={`${unread} unread`}>{unread}</span>
+          )}
+        </button>
       </div>
 
       <div className="card" style={{ marginTop: 12 }}>
@@ -188,7 +210,11 @@ export default function EventView({ initial }: { initial: Snapshot }) {
           </div>
         </div>
 
-        {tab === 'map' ? (
+        {tab === 'feed' ? (
+          <FeedPanel token={token} entries={feed.entries}
+            lastReadAt={feed.lastReadAt} myParticipantId={snapshot.me?.id ?? null}
+            canPost={joined} onChanged={() => void refresh()} />
+        ) : tab === 'map' ? (
           <MapPanel participants={participants} venue={event.venue}
             selectedId={selectedId} onSelect={setSelectedId} />
         ) : (

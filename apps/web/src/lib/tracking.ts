@@ -23,6 +23,8 @@ import type { EventRecord } from './events';
 interface TrackingRow {
   arrival_dwell_since: Date | null;
   status: 'not_started' | 'en_route' | 'arrived';
+  display_name: string;
+  event_id: string;
   travel_mode: TravelMode;
   eta_computed_at: Date | null;
   eta_from_lat: number | null;
@@ -38,6 +40,7 @@ export interface IngestResult {
 async function trackingState(participantId: string): Promise<TrackingRow | null> {
   return queryOne<TrackingRow>(
     `select p.arrival_dwell_since, p.status, p.travel_mode,
+            p.display_name, p.event_id,
             e.computed_at as eta_computed_at,
             e.computed_from_lat as eta_from_lat,
             e.computed_from_lng as eta_from_lng
@@ -128,8 +131,9 @@ export async function recordPositions(args: {
         [participantId, source],
       );
       await client.query(
-        `insert into messages (event_id, participant_id, kind) values ($1, $2, 'arrived')`,
-        [event.id, participantId],
+        `insert into messages (event_id, participant_id, author_name, kind)
+         values ($1, $2, $3, 'arrived')`,
+        [event.id, participantId, state.display_name],
       );
       // PS-2/PS-3 — sharing stops itself, and the ETA has nothing left to say.
       await client.query('delete from etas where participant_id = $1', [participantId]);
@@ -221,6 +225,12 @@ export async function setCheckinState(args: {
 }): Promise<void> {
   const now = args.now ?? Date.now();
 
+  const existing = await queryOne<{ status: string }>(
+    'select status from participants where id = $1',
+    [args.participantId],
+  );
+  const previousStatus = existing?.status ?? null;
+
   if (args.status === 'en_route' && !isCheckinOpen(args.event.startsAt, now)) {
     throw conflict(
       'Check-in opens two hours before the event.',
@@ -263,11 +273,35 @@ export async function setCheckinState(args: {
     params,
   );
 
+  const who = await queryOne<{ display_name: string }>(
+    'select display_name from participants where id = $1',
+    [args.participantId],
+  );
+  const name = who?.display_name ?? null;
+
   if (args.status === 'arrived') {
     await query('delete from etas where participant_id = $1', [args.participantId]);
     await query(
-      `insert into messages (event_id, participant_id, kind) values ($1, $2, 'arrived')`,
-      [args.event.id, args.participantId],
+      `insert into messages (event_id, participant_id, author_name, kind)
+       values ($1, $2, $3, 'arrived')`,
+      [args.event.id, args.participantId, name],
+    );
+  } else if (args.status === 'en_route' && previousStatus !== 'en_route') {
+    // Only on the transition: someone tapping "share" twice should not post
+    // "on the way" twice.
+    await query(
+      `insert into messages (event_id, participant_id, author_name, kind)
+       values ($1, $2, $3, 'checked_in')`,
+      [args.event.id, args.participantId, name],
+    );
+  }
+
+  if (args.selfReportedEta !== undefined && args.selfReportedEta !== null) {
+    await query(
+      `insert into messages (event_id, participant_id, author_name, kind, meta)
+       values ($1, $2, $3, 'late', $4)`,
+      [args.event.id, args.participantId, name,
+       JSON.stringify({ etaAt: args.selfReportedEta })],
     );
   }
 }

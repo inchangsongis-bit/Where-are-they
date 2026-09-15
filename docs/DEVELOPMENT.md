@@ -110,6 +110,34 @@ Both stores require that disclosure before the system prompt, and Google Play
 additionally requires a declaration form and a demo video — start that during
 this phase, not at submission.
 
+## The feed
+
+`packages/core/src/feed.ts` decides how a system event reads and what the
+quick replies do; both surfaces import it, so "Marco arrived" renders the same
+in the app and in the browser.
+
+Two decisions worth knowing:
+
+**System events are written where they happen**, not derived at read time. An
+RSVP change, a check-in and an arrival each insert their own row, so the thread
+is a record of what happened in the order it happened rather than a view
+reconstructed from current state.
+
+**The author's name is denormalised onto every entry.** `participant_id` is
+`ON DELETE SET NULL`, so without it someone leaving the event would turn their
+"Marco arrived" line into "Someone arrived". The feed is a record; it should
+keep reading correctly after the cast changes.
+
+There are deliberately **no read receipts** — only a per-participant "last read
+at". Receipts change how people behave in a thread by making not replying
+visible, and this is a feed for coordinating a dinner.
+
+Two of the three quick replies change state as well as posting: "On my way"
+checks you in, and "Running 10 late" moves your self-reported ETA, so the feed
+and the list cannot contradict each other. "Running 10 late" counts from the
+start time, or from now if the start has passed — otherwise someone an hour
+late could claim to be ten minutes away.
+
 ## The map
 
 `packages/core/src/map.ts` decides what goes on the map — which dots to draw

@@ -8,8 +8,10 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
+import { unreadCount, type FeedEntry } from '@wat/core';
 import { api, type Snapshot } from '../../src/api';
 import EventMap from '../../src/components/EventMap';
+import EventFeed from '../../src/components/EventFeed';
 import { loadSecret, saveSecret } from '../../src/storage';
 import {
   currentPermissionLevel, requestPermissions, startTracking, stopTracking,
@@ -28,12 +30,21 @@ export default function EventScreen() {
   const [permission, setPermission] = useState<PermissionLevel>('denied');
   const [showDisclosure, setShowDisclosure] = useState(false);
   const [now, setNow] = useState(() => Date.now());
-  const [tab, setTab] = useState<'list' | 'map'>('list');
+  const [tab, setTab] = useState<'list' | 'map' | 'feed'>('list');
+  const [feed, setFeed] = useState<{
+    entries: FeedEntry[]; lastReadAt: number | null;
+  }>({ entries: [], lastReadAt: null });
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     try {
-      setSnapshot(await api.snapshot(eventToken, await loadSecret(eventToken)));
+      const stored = await loadSecret(eventToken);
+      const [state, thread] = await Promise.all([
+        api.snapshot(eventToken, stored),
+        api.feed(eventToken, stored),
+      ]);
+      setSnapshot(state);
+      setFeed(thread);
     } catch {
       // Keep showing what we last knew rather than blanking the screen.
     }
@@ -127,6 +138,20 @@ export default function EventScreen() {
     }
   }
 
+  async function sendMessage(payload: { body?: string; quickReply?: string }) {
+    if (secret === null) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await api.postMessage(eventToken, secret, payload);
+      await refresh();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not send that.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (snapshot === null) {
     return (
       <View style={styles.center}>
@@ -139,6 +164,8 @@ export default function EventScreen() {
   const me = participants.find((p) => p.id === snapshot.me?.id) ?? null;
   const roster = sortRoster(participants, now);
   const summary = summarise(participants);
+  const unread =
+    tab === 'feed' ? 0 : unreadCount(feed.entries, feed.lastReadAt, snapshot.me?.id ?? null);
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -218,6 +245,18 @@ export default function EventScreen() {
           accessibilityState={{ selected: tab === 'map' }}>
           <Text style={tab === 'map' ? styles.tabTextActive : styles.tabText}>Map</Text>
         </Pressable>
+        <Pressable
+          style={[styles.tab, tab === 'feed' && styles.tabActive]}
+          onPress={() => {
+            setTab('feed');
+            if (secret !== null) void api.markRead(eventToken, secret).then(refresh);
+          }}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: tab === 'feed' }}>
+          <Text style={tab === 'feed' ? styles.tabTextActive : styles.tabText}>
+            Feed{unread > 0 ? ` (${unread})` : ''}
+          </Text>
+        </Pressable>
       </View>
 
       <Text style={styles.tally}>
@@ -225,7 +264,16 @@ export default function EventScreen() {
         {summary.notStarted} not started
       </Text>
 
-      {tab === 'map' ? (
+      {tab === 'feed' ? (
+        <EventFeed
+          entries={feed.entries}
+          myParticipantId={snapshot.me?.id ?? null}
+          canPost={me !== null}
+          busy={busy}
+          onSend={(body) => void sendMessage({ body })}
+          onQuickReply={(quickReply) => void sendMessage({ quickReply })}
+        />
+      ) : tab === 'map' ? (
         <EventMap
           participants={participants}
           venue={{ name: event.venue.name, lat: event.venue.lat, lng: event.venue.lng }}

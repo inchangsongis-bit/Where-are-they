@@ -11,3 +11,4 @@ export * from './arrival';
 export * from './eta';
 export * from './tracking';
 export * from './map';
+export * from './feed';

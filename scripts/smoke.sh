@@ -116,6 +116,35 @@ assert marco["sharing"] is False, marco
 assert marco["eta"] is None, marco
 PYEOF
 
+echo "==> the feed interleaves messages with what happened"
+curl -fsS -b "$jar" -X POST "http://127.0.0.1:$port/api/events/$token/messages" \
+  -H 'content-type: application/json' -d '{"body":"grabbing the table"}' >/dev/null
+thread=$(curl -fsS "http://127.0.0.1:$port/api/events/$token/messages")
+grep -q '"kind":"joined"' <<<"$thread" || fail "no joined events in the thread"
+grep -q '"kind":"arrived"' <<<"$thread" || fail "arrival did not reach the thread"
+grep -q 'grabbing the table' <<<"$thread" || fail "message not in the thread"
+
+echo "==> a quick reply changes state, not just the thread"
+jar3="$repo_root/.tmp/smoke-quick.txt"; rm -f "$jar3"
+curl -fsS -c "$jar3" -X POST "http://127.0.0.1:$port/api/events/$token/join" \
+  -H 'content-type: application/json' -d '{"displayName":"Priya"}' >/dev/null
+curl -fsS -b "$jar3" -X POST "http://127.0.0.1:$port/api/events/$token/messages" \
+  -H 'content-type: application/json' -d '{"quickReply":"late10"}' >/dev/null
+snapshot=$(curl -fsS "http://127.0.0.1:$port/api/events/$token")
+python3 - "$snapshot" <<'PYEOF' || fail "quick reply did not move the ETA"
+import json, sys
+data = json.loads(sys.argv[1])
+priya = next(p for p in data["participants"] if p["displayName"] == "Priya")
+assert priya["status"] == "en_route", priya
+assert priya["selfReportedEta"] is not None, priya
+PYEOF
+
+echo "==> posting without joining is refused"
+code=$(curl -s -o /dev/null -w '%{http_code}' -X POST \
+  "http://127.0.0.1:$port/api/events/$token/messages" \
+  -H 'content-type: application/json' -d '{"body":"hello"}')
+[[ "$code" == "401" ]] || fail "expected 401 posting with no cookie, got $code"
+
 echo "==> purge requires its secret"
 code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "http://127.0.0.1:$port/api/cron/purge")
 [[ "$code" == "401" ]] || fail "purge allowed without a secret ($code)"
@@ -124,4 +153,4 @@ purged=$(curl -fsS -X POST "http://127.0.0.1:$port/api/cron/purge" \
 grep -q '"eventsDeleted":0' <<<"$purged" || fail "purge deleted a live event: $purged"
 
 echo
-echo "--- smoke passed: create -> invite -> join -> RSVP -> check in -> ETA -> arrive ---"
+echo "--- smoke passed: create -> invite -> join -> RSVP -> check in -> ETA -> arrive -> feed ---"

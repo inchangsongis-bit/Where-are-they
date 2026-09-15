@@ -1,4 +1,4 @@
-import type { Participant, Rsvp, TravelMode } from '@wat/core';
+import type { FeedEntry, Participant, Rsvp, TravelMode } from '@wat/core';
 import { API_BASE_URL } from './config';
 
 /**
@@ -78,6 +78,25 @@ export const api = {
   ) =>
     request<{ participant: Participant }>(`/api/events/${token}/me`, {
       method: 'PATCH', body, secret,
+    }),
+
+  feed: (token: string, secret: string | null) =>
+    request<{ entries: FeedEntry[]; lastReadAt: number | null }>(
+      `/api/events/${token}/messages`, { secret },
+    ),
+
+  postMessage: (
+    token: string,
+    secret: string,
+    payload: { body?: string; quickReply?: string },
+  ) =>
+    request<{ entry: FeedEntry }>(`/api/events/${token}/messages`, {
+      method: 'POST', body: payload, secret,
+    }),
+
+  markRead: (token: string, secret: string) =>
+    request<{ ok: true }>(`/api/events/${token}/me/read`, {
+      method: 'POST', secret,
     }),
 
   /** FR-10 — background fixes arrive in batches, oldest first. */

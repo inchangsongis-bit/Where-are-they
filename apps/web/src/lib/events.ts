@@ -181,9 +181,10 @@ export async function createEvent(
     }
 
     await client.query(
-      `insert into messages (event_id, participant_id, kind, meta)
-       values ($1, $2, 'joined', $3)`,
-      [eventRow.id, participantId, JSON.stringify({ organizer: true })],
+      `insert into messages (event_id, participant_id, author_name, kind, meta)
+       values ($1, $2, $3, 'joined', $4)`,
+      [eventRow.id, participantId, input.organizerName,
+       JSON.stringify({ organizer: true })],
     );
 
     return { event: toEventRecord(eventRow), participantId, session };
@@ -317,8 +318,9 @@ export async function joinEvent(args: {
     if (id === undefined) throw new Error('Participant insert returned no row');
 
     await client.query(
-      `insert into messages (event_id, participant_id, kind) values ($1, $2, 'joined')`,
-      [eventId, id],
+      `insert into messages (event_id, participant_id, author_name, kind)
+       values ($1, $2, $3, 'joined')`,
+      [eventId, id, displayName],
     );
 
     const participant = await client.query<ParticipantRow>(
@@ -351,6 +353,16 @@ export async function updateParticipant(
   participantId: string,
   input: UpdateParticipantInput,
 ): Promise<Participant> {
+  // FR-15 — an RSVP change is something that happened, so it belongs in the
+  // thread next to the arrivals rather than only mutating a row.
+  const before =
+    input.rsvp === undefined
+      ? null
+      : await queryOne<{ rsvp: Rsvp; event_id: string; display_name: string }>(
+          'select rsvp, event_id, display_name from participants where id = $1',
+          [participantId],
+        );
+
   const sets: string[] = [];
   const params: unknown[] = [];
 
@@ -381,6 +393,23 @@ export async function updateParticipant(
     params,
   );
   if (updated === null) throw notFound();
+
+  if (
+    input.rsvp !== undefined &&
+    before !== null &&
+    before.rsvp !== input.rsvp
+  ) {
+    await query(
+      `insert into messages (event_id, participant_id, author_name, kind, meta)
+       values ($1, $2, $3, 'rsvp', $4)`,
+      [
+        before.event_id,
+        participantId,
+        input.displayName ?? before.display_name,
+        JSON.stringify({ rsvp: input.rsvp }),
+      ],
+    );
+  }
 
   const roster = await listParticipants(updated.event_id);
   const me = roster.find((p) => p.id === participantId);
