@@ -165,6 +165,10 @@ purged=$(curl -fsS -X POST "http://127.0.0.1:$port/api/cron/purge" \
   -H "authorization: Bearer smoke-secret")
 grep -q '"eventsDeleted":0' <<<"$purged" || fail "purge deleted a live event: $purged"
 
+echo "==> installable as an app"
+BASE="http://127.0.0.1:$port" node "$repo_root/scripts/pwa-check.mjs" \
+  | grep -E 'FAIL|Installable' || fail "not installable"
+
 # WCAG 2.1 AA (NFR). Runs against the live server with real data in it, since
 # an empty page passes checks that a populated one fails.
 if [[ -f "$repo_root/node_modules/axe-core/axe.min.js" ]] || \

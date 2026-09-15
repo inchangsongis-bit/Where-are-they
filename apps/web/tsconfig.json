@@ -4,6 +4,11 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "jsx": "preserve",
     "noEmit": true,
+    // Apps emit nothing, so they need no declarations. Leaving this on
+    // makes every exported component type have to be nameable, which two
+    // @types/react versions in one workspace make impossible.
+    "declaration": false,
+    "declarationMap": false,
     "allowJs": true,
     "incremental": true,
     "moduleResolution": "Bundler",

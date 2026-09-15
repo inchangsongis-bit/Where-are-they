@@ -303,3 +303,31 @@ button.secondary {
   text-decoration: underline; text-underline-offset: 2px; cursor: pointer;
 }
 .footer-actions button.quiet:hover { color: var(--signal); }
+
+/* --- install prompt ------------------------------------------------------ */
+
+.install {
+  position: fixed; left: 12px; right: 12px; bottom: 12px;
+  max-width: 496px; margin: 0 auto;
+  display: flex; flex-wrap: wrap; gap: 10px 14px;
+  align-items: center; justify-content: space-between;
+  padding: 14px; border-radius: 12px;
+  background: var(--surface); border: 1px solid var(--rule);
+  box-shadow: 0 6px 24px -10px rgba(20, 31, 29, 0.35);
+  /* Above the page, below any modal. */
+  z-index: 40;
+}
+.install-text { display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
+.install-text strong { font-size: 14px; }
+.install-text span { color: var(--ink-soft); }
+.install-actions { display: flex; gap: 10px; align-items: center; margin-left: auto; }
+.install-actions button { min-height: 40px; padding: 8px 16px; font-size: 14px; }
+.install-actions button.quiet {
+  background: none; border: 0; color: var(--ink-soft); padding: 8px 4px;
+  text-decoration: underline; text-underline-offset: 2px; font-weight: 400;
+}
+
+/* Keep the footer clear of the prompt so nothing is unreachable. */
+@media (max-width: 560px) {
+  main { padding-bottom: 120px; }
+}

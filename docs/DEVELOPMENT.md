@@ -110,6 +110,41 @@ Both stores require that disclosure before the system prompt, and Google Play
 additionally requires a declaration form and a demo video — start that during
 this phase, not at submission.
 
+## Installing it as an app
+
+The web surface is a PWA: home screen icon, no browser chrome, works without
+signal. `pnpm smoke` runs `scripts/pwa-check.mjs`, which checks what a browser
+checks before offering to install — a manifest that parses, `display:
+standalone`, icons at 192 and 512 that are **actually served** (a 404 there
+silently blocks installation), an apple-touch-icon since iOS ignores manifest
+icons, and a service worker with a fetch handler.
+
+The caching rules are deliberately narrow, because this app's value is that
+the numbers on screen are current:
+
+- **`/api/*` is never cached, under any strategy.** A cached roster showing a
+  friend's ETA from twenty minutes ago is worse than no roster at all.
+- Navigations are network-first and fall back to `/offline` only when the
+  network genuinely fails.
+- Only content-hashed build output and icons are cached outright.
+
+The install prompt is deliberately quiet: it never appears before someone has
+joined the event they were invited to, and once dismissed it stays dismissed.
+iOS has no install event at all — Safari only offers Add to Home Screen from
+its own share sheet — so there the app can only say where to find it.
+
+### Three senses of "app"
+
+| | What it is | Status |
+| --- | --- | --- |
+| **Installable web app** | This. Home screen icon, full screen, offline shell | Working, verified |
+| **Native app** | `apps/mobile` — background tracking, geofencing, Expo Push | Builds and bundles; never run |
+| **Store listing** | App Store and Play | Not started (R1.8) |
+
+Only the native app can track location with the screen off. The installable
+web app stops when the phone locks, which is the honest limit of what a
+browser can do.
+
 ## Cancelling and leaving
 
 Cancelling is not a status flag with a banner on top. When an organizer calls

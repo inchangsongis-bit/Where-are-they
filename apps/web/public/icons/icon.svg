@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img"
+     aria-label="Where Are They">
+  <rect width="512" height="512" fill="#0B6E63"/>
+  <!-- Venue pin, centred in the maskable safe zone. -->
+  <path d="M256 128c-48.6 0-88 39.4-88 88 0 62 88 168 88 168s88-106 88-168c0-48.6-39.4-88-88-88z"
+        fill="#FBFCFA"/>
+  <circle cx="256" cy="216" r="34" fill="#0B6E63"/>
+  <!-- Three arriving at different distances: the whole point of the product. -->
+  <circle cx="132" cy="392" r="22" fill="#FBFCFA" opacity="0.95"/>
+  <circle cx="196" cy="428" r="16" fill="#FBFCFA" opacity="0.7"/>
+  <circle cx="380" cy="392" r="22" fill="#FBFCFA" opacity="0.95"/>
+</svg>
