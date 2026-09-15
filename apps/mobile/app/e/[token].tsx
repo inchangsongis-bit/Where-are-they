@@ -184,6 +184,12 @@ export default function EventScreen() {
 
       {error !== null && <Text style={styles.error}>{error}</Text>}
 
+      {event.status === 'cancelled' && (
+        <Text style={styles.cancelled} accessibilityRole="alert">
+          This event was cancelled. Location sharing has stopped for everyone.
+        </Text>
+      )}
+
       {me === null ? (
         <View style={styles.block}>
           <Text style={styles.heading}>What&rsquo;s your name?</Text>
@@ -193,7 +199,7 @@ export default function EventScreen() {
             <Text style={styles.buttonText}>Join</Text>
           </Pressable>
         </View>
-      ) : me.status === 'arrived' ? (
+      ) : event.status === 'cancelled' ? null : me.status === 'arrived' ? (
         <Text style={styles.here}>You&rsquo;re here. Location sharing has stopped.</Text>
       ) : showDisclosure ? (
         // PS-11 — shown *before* the system prompt. Both stores require it, and
@@ -371,12 +377,16 @@ const styles = StyleSheet.create({
   },
   secondaryText: { color: '#0B6E63', fontWeight: '600', fontSize: 16 },
   sharing: {
-    backgroundColor: '#DCEEE1', color: '#2C7A4C', padding: 10,
+    backgroundColor: '#DCEEE1', color: '#1F5F39', padding: 10,
     borderRadius: 8, fontWeight: '600', fontSize: 13,
   },
   here: {
-    backgroundColor: '#DCEEE1', color: '#2C7A4C', padding: 12,
+    backgroundColor: '#DCEEE1', color: '#1F5F39', padding: 12,
     borderRadius: 8, fontWeight: '600',
+  },
+  cancelled: {
+    backgroundColor: '#F6E4D8', color: '#9A3F13', padding: 12,
+    borderRadius: 8, fontWeight: '600', fontSize: 14,
   },
   error: { color: '#B24A17', fontSize: 14 },
   tally: { fontSize: 13, opacity: 0.7, marginTop: 14 },

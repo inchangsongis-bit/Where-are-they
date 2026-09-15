@@ -30,6 +30,7 @@ describe('describeEntry', () => {
     ['arrived', 'Ana arrived'],
     ['late', 'Ana is running late'],
     ['joined', 'Ana joined'],
+    ['cancelled', 'Ana cancelled this'],
   ])('renders a %s event as a sentence', (kind, expected) => {
     expect(describeEntry(entry({ kind: kind as FeedEntry['kind'], body: null })))
       .toBe(expected);

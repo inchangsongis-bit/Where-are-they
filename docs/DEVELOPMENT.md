@@ -110,6 +110,21 @@ Both stores require that disclosure before the system prompt, and Google Play
 additionally requires a declaration form and a demo video — start that during
 this phase, not at submission.
 
+## Cancelling and leaving
+
+Cancelling is not a status flag with a banner on top. When an organizer calls
+off a dinner, people may be driving across town right now with their location
+going to a group that is no longer meeting — so `cancelEvent` stops sharing,
+deletes the positions and ETAs, and brings the purge forward, all in one
+transaction. Only the organizer can do it: anyone being able to call off a
+dinner for six is not a feature.
+
+Leaving removes the participant and their positions. Their words stay in the
+thread, attributed by the name denormalised onto each entry, because the feed
+is a record of what happened that evening. Their session stops working
+immediately, and joining again creates a new participant rather than reviving
+the old one.
+
 ## Accessibility
 
 ```bash
@@ -123,6 +138,9 @@ non-zero on any violation. It runs with **real data in it**, because an empty
 page passes checks that a populated one fails: the first run found eight
 contrast failures that only existed once there were status chips and feed
 timestamps on screen.
+
+The audit covers seven states, including two that most audits never reach: the
+404 page, and the location disclosure panel, which only exists after a tap.
 
 Two rules worth keeping in mind when adding UI:
 

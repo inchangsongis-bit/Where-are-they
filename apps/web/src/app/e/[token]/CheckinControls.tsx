@@ -29,6 +29,7 @@ export default function CheckinControls({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [manualMinutes, setManualMinutes] = useState('20');
+  const [showDisclosure, setShowDisclosure] = useState(false);
   const push = useWebPush(token);
 
   const sharing = useLocationSharing({
@@ -81,14 +82,43 @@ export default function CheckinControls({
         ))}
       </select>
 
-      {me.status === 'not_started' ? (
-        <button type="button" disabled={busy}
-          onClick={() => {
-            // FR-18 — ask for notifications here, at the first moment they buy
-            // the user something, never at page load.
-            void push.subscribe();
-            void patch({ status: 'en_route', sharing: true });
-          }}>
+      {me.status === 'not_started' && showDisclosure ? (
+        // PS-9/PS-11 — say what is about to happen *before* the browser's own
+        // permission prompt, which offers no room to explain and only one
+        // chance to be refused.
+        <div className="disclosure">
+          <p className="disclosure-title">Before we ask for your location</p>
+          <p>
+            It goes to the {"people in this event"} and nobody else, only while
+            you&rsquo;re checked in, and it stops by itself when you arrive.
+          </p>
+          <p>
+            We keep your latest position, not a trail of where you&rsquo;ve
+            been, and it&rsquo;s deleted a few hours after the dinner.
+          </p>
+          <a href="/privacy" target="_blank" rel="noreferrer">
+            What this app knows about you
+          </a>
+          <button type="button" disabled={busy}
+            onClick={() => {
+              setShowDisclosure(false);
+              // FR-18 — ask for notifications here too: the first moment they
+              // buy the user something, never at page load.
+              void push.subscribe();
+              void patch({ status: 'en_route', sharing: true });
+            }}>
+            Continue
+          </button>
+          <button type="button" className="secondary" disabled={busy}
+            onClick={() => {
+              setShowDisclosure(false);
+              void patch({ status: 'en_route', sharing: false });
+            }}>
+            Check in without sharing location
+          </button>
+        </div>
+      ) : me.status === 'not_started' ? (
+        <button type="button" disabled={busy} onClick={() => setShowDisclosure(true)}>
           I&rsquo;m on my way
         </button>
       ) : (

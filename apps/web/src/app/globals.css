@@ -250,3 +250,56 @@ button.secondary {
   min-height: 32px; padding: 4px 10px; font-size: 12px;
   background: transparent; color: var(--accent); border: 1px solid var(--rule);
 }
+
+/* --- prose pages --------------------------------------------------------- */
+
+.prose { max-width: 620px; }
+.prose h1 { margin-bottom: 14px; }
+.prose h2 {
+  font-size: 17px; margin: 28px 0 8px;
+  padding-top: 18px; border-top: 1px solid var(--rule);
+}
+.prose .lead { font-size: 17px; color: var(--ink); }
+.prose ul { padding-left: 20px; display: flex; flex-direction: column; gap: 7px; }
+.prose li { color: var(--ink-soft); }
+.prose table {
+  width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 8px;
+}
+.prose th {
+  text-align: left; font-size: 12px; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--ink-faint); font-weight: 600;
+  padding: 6px 10px 6px 0; border-bottom: 1px solid var(--rule);
+}
+.prose td {
+  padding: 9px 10px 9px 0; border-bottom: 1px solid var(--rule-soft, var(--rule));
+  color: var(--ink-soft); vertical-align: top;
+}
+.prose td:first-child { color: var(--ink); font-weight: 600; white-space: nowrap; }
+.prose .back { margin-top: 32px; }
+
+.disclosure {
+  border: 1px solid var(--rule); border-left: 3px solid var(--accent);
+  border-radius: 8px; padding: 14px; background: var(--surface);
+  display: flex; flex-direction: column; gap: 8px;
+}
+.disclosure p { margin: 0; font-size: 14px; }
+.disclosure .disclosure-title { font-weight: 600; color: var(--ink); }
+.disclosure a { font-size: 13px; }
+
+.cancelled {
+  margin: 16px 0 0; padding: 12px; border-radius: 8px;
+  background: var(--signal-soft); color: var(--signal); font-weight: 600;
+  font-size: 14px;
+}
+
+.footer-actions {
+  display: flex; flex-wrap: wrap; gap: 16px; align-items: center;
+  margin-top: 28px; padding-top: 16px; border-top: 1px solid var(--rule);
+  font-size: 13px;
+}
+.footer-actions button.quiet {
+  background: none; border: 0; padding: 0; min-height: 0;
+  color: var(--ink-soft); font-size: 13px; font-weight: 400;
+  text-decoration: underline; text-underline-offset: 2px; cursor: pointer;
+}
+.footer-actions button.quiet:hover { color: var(--signal); }

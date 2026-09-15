@@ -422,3 +422,51 @@ export async function updateParticipant(
 export async function leaveEvent(participantId: string): Promise<void> {
   await query('delete from participants where id = $1', [participantId]);
 }
+
+/**
+ * FR-7 — cancel an event.
+ *
+ * Cancelling is not a status flag with a banner on top. People may be driving
+ * across town right now with their location going to a group that is no longer
+ * meeting, so the first thing this does is stop that: sharing off, ETAs gone,
+ * positions deleted. PS-2 says sharing stops when the event does, and an event
+ * that was called off has certainly stopped.
+ */
+export async function cancelEvent(args: {
+  eventId: string;
+  byParticipantId: string;
+  byName: string;
+}): Promise<void> {
+  await transaction(async (client) => {
+    await client.query(
+      `update events
+          set status = 'cancelled', cancelled_at = now(), cancelled_by = $2,
+              location_purge_at = least(location_purge_at, now())
+        where id = $1`,
+      [args.eventId, args.byParticipantId],
+    );
+
+    await client.query(
+      `update participants set sharing = false where event_id = $1`,
+      [args.eventId],
+    );
+
+    await client.query(
+      `delete from etas
+        where participant_id in (select id from participants where event_id = $1)`,
+      [args.eventId],
+    );
+
+    await client.query(
+      `delete from positions
+        where participant_id in (select id from participants where event_id = $1)`,
+      [args.eventId],
+    );
+
+    await client.query(
+      `insert into messages (event_id, participant_id, author_name, kind)
+       values ($1, $2, $3, 'cancelled')`,
+      [args.eventId, args.byParticipantId, args.byName],
+    );
+  });
+}

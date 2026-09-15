@@ -54,6 +54,16 @@ const create = await browser.newPage({ viewport: { width: 400, height: 900 } });
 await create.goto(`${BASE}/`, { waitUntil: 'networkidle' });
 report.push(await audit(create, 'create event'));
 
+// Privacy and the not-found page — read by people who are lost or worried,
+// which is exactly when accessibility matters most.
+const privacy = await browser.newPage({ viewport: { width: 400, height: 900 } });
+await privacy.goto(`${BASE}/privacy`, { waitUntil: 'networkidle' });
+report.push(await audit(privacy, 'privacy'));
+
+const missing = await browser.newPage({ viewport: { width: 400, height: 900 } });
+await missing.goto(`${BASE}/e/AAAAAAAAAAAAAAAAAAAAAA`, { waitUntil: 'networkidle' });
+report.push(await audit(missing, 'unknown event (404)'));
+
 // Joined participant, each tab.
 const context = await browser.newContext({
   viewport: { width: 400, height: 1000 },
@@ -74,6 +84,16 @@ report.push(await audit(page, 'event: map tab'));
 await page.getByRole('tab', { name: /Feed/ }).click();
 await page.waitForTimeout(600);
 report.push(await audit(page, 'event: feed tab'));
+
+// The location disclosure, which is a panel most audits never reach because
+// it only exists after a tap.
+await page.getByRole('tab', { name: 'List' }).click();
+const onMyWay = page.getByRole('button', { name: /on my way/i });
+if (await onMyWay.count() > 0) {
+  await onMyWay.first().click();
+  await page.waitForTimeout(300);
+  report.push(await audit(page, 'location disclosure'));
+}
 
 await browser.close();
 

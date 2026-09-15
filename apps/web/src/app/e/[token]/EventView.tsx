@@ -143,6 +143,41 @@ export default function EventView({ initial }: { initial: Snapshot }) {
     }
   }
 
+  async function leave() {
+    if (!window.confirm('Leave this event? Your location stops being shared.')) return;
+    try {
+      await fetch(`/api/events/${token}/me`, { method: 'DELETE' });
+      window.location.reload();
+    } catch {
+      setError('Could not leave. Try again.');
+    }
+  }
+
+  async function cancelEvent() {
+    if (
+      !window.confirm(
+        'Cancel this dinner for everyone? Location sharing stops immediately.',
+      )
+    ) {
+      return;
+    }
+    try {
+      const response = await fetch(`/api/events/${token}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ status: 'cancelled' }),
+      });
+      if (!response.ok) {
+        const data = (await response.json()) as { error?: string };
+        setError(data.error ?? 'Could not cancel.');
+        return;
+      }
+      await refresh();
+    } catch {
+      setError('Could not reach the server.');
+    }
+  }
+
   const { event, participants } = snapshot;
   const timezone = event.timezone;
   const roster = sortRoster(participants, now);
@@ -159,10 +194,6 @@ export default function EventView({ initial }: { initial: Snapshot }) {
         {event.venue.name} · {event.venue.address} ·{' '}
         {formatClockTime(event.startsAt, timezone)}
       </p>
-
-      {event.status === 'cancelled' && (
-        <p className="error">This event was cancelled.</p>
-      )}
 
       {!joined ? (
         <form onSubmit={join} style={{ marginTop: 20 }}>
@@ -188,10 +219,16 @@ export default function EventView({ initial }: { initial: Snapshot }) {
             ))}
           </div>
 
-          {me !== null && me.rsvp !== 'cant' && (
+          {me !== null && me.rsvp !== 'cant' && event.status !== 'cancelled' && (
             <CheckinControls token={token} me={me} onChanged={() => void refresh()} />
           )}
         </>
+      )}
+
+      {event.status === 'cancelled' && (
+        <p className="cancelled" role="status">
+          This event was cancelled. Location sharing has stopped for everyone.
+        </p>
       )}
 
       <div className="tabs" role="tablist" aria-label="Views">
@@ -231,6 +268,11 @@ export default function EventView({ initial }: { initial: Snapshot }) {
           <MapPanel participants={participants} venue={event.venue}
             selectedId={selectedId} onSelect={setSelectedId} />
         ) : (
+          roster.length === 0 ? (
+            <p className="feed-empty" style={{ padding: '16px' }}>
+              Nobody has joined yet. Send the link.
+            </p>
+          ) : (
           roster.map((participant) => (
             <Row key={participant.id} participant={participant}
               timezone={timezone} startsAt={event.startsAt} now={now}
@@ -243,8 +285,21 @@ export default function EventView({ initial }: { initial: Snapshot }) {
               onSelect={() =>
                 setSelectedId(selectedId === participant.id ? null : participant.id)} />
           ))
-        )}
+        ))}
       </div>
+      {joined && (
+        <div className="footer-actions">
+          <a href="/privacy">What this app knows about you</a>
+          {me?.isOrganizer === true && event.status !== 'cancelled' && (
+            <button type="button" className="quiet" onClick={() => void cancelEvent()}>
+              Cancel this event
+            </button>
+          )}
+          <button type="button" className="quiet" onClick={() => void leave()}>
+            Leave
+          </button>
+        </div>
+      )}
     </main>
   );
 }

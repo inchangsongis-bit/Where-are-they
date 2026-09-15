@@ -16,7 +16,8 @@ export type FeedKind =
   | 'rsvp'
   | 'checked_in'
   | 'arrived'
-  | 'late';
+  | 'late'
+  | 'cancelled';
 
 export interface FeedEntry {
   id: string;
@@ -53,6 +54,8 @@ export function describeEntry(entry: FeedEntry): string {
       return `${who} arrived`;
     case 'late':
       return `${who} is running late`;
+    case 'cancelled':
+      return `${who} cancelled this`;
     case 'rsvp': {
       const rsvp = entry.meta?.['rsvp'];
       if (rsvp === 'going') return `${who} is coming`;
