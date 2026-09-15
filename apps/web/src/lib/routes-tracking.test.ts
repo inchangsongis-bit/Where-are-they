@@ -224,6 +224,86 @@ describeWithDb('tracking routes', () => {
     expect(response.status).toBe(409);
   });
 
+  // --- native clients carry the same credential as a bearer token (PS-6) ---
+
+  it('gives a native client the secret in the body and no cookie', async () => {
+    const response = await createEventRoute(
+      post('http://t/api/events', {
+        title: 'Dinner', placeName: KISA.placeName, placeAddress: KISA.placeAddress,
+        lat: KISA.lat, lng: KISA.lng,
+        startsAt: new Date(Date.now() + 30 * 60_000).toISOString(),
+        timezone: KISA.timezone, organizerName: 'Ana',
+      }, { 'x-forwarded-for': '10.20.30.40', 'x-wat-client': 'native' }),
+    );
+    const data = (await response.json()) as { sessionSecret?: string };
+    expect(data.sessionSecret).toBeTypeOf('string');
+    expect(response.headers.getSetCookie()).toHaveLength(0);
+  });
+
+  it('never leaks the secret into a browser response body', async () => {
+    const { token, cookie } = await makeEvent();
+    expect(cookie).not.toBe('');
+    const response = await getEventRoute(
+      new Request(`http://t/api/events/${token}`), params(token),
+    );
+    expect(await response.text()).not.toContain('sessionSecret');
+  });
+
+  it('accepts a bearer token in place of a cookie', async () => {
+    const response = await createEventRoute(
+      post('http://t/api/events', {
+        title: 'Dinner', placeName: KISA.placeName, placeAddress: KISA.placeAddress,
+        lat: KISA.lat, lng: KISA.lng,
+        startsAt: new Date(Date.now() + 30 * 60_000).toISOString(),
+        timezone: KISA.timezone, organizerName: 'Ana',
+      }, { 'x-forwarded-for': '10.20.30.41', 'x-wat-client': 'native' }),
+    );
+    const data = (await response.json()) as {
+      event: { token: string }; sessionSecret: string;
+    };
+
+    const patched = await patchMeRoute(
+      post(`http://t/api/events/${data.event.token}/me`, { rsvp: 'going' }, {
+        authorization: `Bearer ${data.sessionSecret}`,
+      }),
+      params(data.event.token),
+    );
+    expect(patched.status).toBe(200);
+  });
+
+  it('refuses a bearer token that is not a real session', async () => {
+    const { token } = await makeEvent();
+    const response = await patchMeRoute(
+      post(`http://t/api/events/${token}/me`, { rsvp: 'going' }, {
+        authorization: 'Bearer not-a-real-secret',
+      }),
+      params(token),
+    );
+    expect(response.status).toBe(401);
+  });
+
+  it('accepts a background position by bearer token', async () => {
+    const created = await createEventRoute(
+      post('http://t/api/events', {
+        title: 'Dinner', placeName: KISA.placeName, placeAddress: KISA.placeAddress,
+        lat: KISA.lat, lng: KISA.lng,
+        startsAt: new Date(Date.now() + 30 * 60_000).toISOString(),
+        timezone: KISA.timezone, organizerName: 'Ana',
+      }, { 'x-forwarded-for': '10.20.30.42', 'x-wat-client': 'native' }),
+    );
+    const data = (await created.json()) as {
+      event: { token: string }; sessionSecret: string;
+    };
+
+    const response = await positionRoute(
+      post(`http://t/api/events/${data.event.token}/me/position`, {
+        ...FAR, accuracyM: 20, recordedAt: Date.now(), source: 'app_background',
+      }, { authorization: `Bearer ${data.sessionSecret}` }),
+      params(data.event.token),
+    );
+    expect(response.status).toBe(200);
+  });
+
   it('changes travel mode, which changes the estimate', async () => {
     const { token, header } = await makeEvent();
     await positionRoute(

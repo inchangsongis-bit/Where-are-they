@@ -272,6 +272,29 @@ describeWithDb('position ingest', () => {
     expect(Number(rows[0]?.count)).toBe(1);
   });
 
+  it('refuses positions once the event window has closed', async () => {
+    // The client is meant to stop on its own (stopTrackingReason). The server
+    // enforces it anyway: a stuck background task must not be able to keep
+    // reporting someone's location after everyone has gone home.
+    const { event, participantId } = await makeEvent(Date.now() - 5 * 60 * 60_000);
+
+    await expect(
+      recordPositions({
+        participantId, event, source: 'app_background',
+        positions: [position(FAR, Date.now())],
+      }),
+    ).rejects.toThrow(/over/i);
+  });
+
+  it('still accepts positions inside the window, including after the start', async () => {
+    const { event, participantId } = await makeEvent(Date.now() - 60 * 60_000);
+    const result = await recordPositions({
+      participantId, event, source: 'app_background',
+      positions: [position(FAR, Date.now())],
+    });
+    expect(result.accepted).toBe(1);
+  });
+
   it('refuses positions for a cancelled event', async () => {
     const { event, participantId } = await makeEvent();
     await query(`update events set status = 'cancelled' where id = $1`, [event.id]);

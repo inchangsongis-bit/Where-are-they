@@ -39,9 +39,9 @@ passing quietly, so a green run with no database is visibly a partial run.
 ## Layout
 
 ```
-apps/mobile      Expo app (React Native)         — R1.2 onward
+apps/mobile      Expo app — background tracking, geofenced arrival
 apps/web         Next.js — invite target, browser participation
-packages/core    Shared rules: staleness, ordering, tokens, geo, validation
+packages/core    Shared rules: staleness, ordering, tracking tiers, stop rules
 supabase/        Migrations and schema tests
 ```
 
@@ -70,6 +70,45 @@ and `authenticated` roles outright.
 
 This is deliberate, and it changes in R2: once accounts exist, real per-role
 policies replace it and the service-role key stops being the only way in.
+
+## The mobile app
+
+```bash
+cd apps/mobile
+pnpm typecheck
+pnpm exec expo config --type public          # resolves app config and plugins
+pnpm exec expo export --platform ios         # bundles; catches import errors
+pnpm start                                   # needs a device or simulator
+```
+
+**What cannot be verified without a device:** whether background location
+actually keeps delivering with the screen off, whether the geofence fires while
+the app is suspended, and what any of it costs in battery. Those are the claims
+R1.3 exists to make, and they need a real phone on a real journey. Typechecking
+and bundling prove the code is wired together, not that the OS behaves.
+
+### Where the policy lives
+
+`packages/core/src/tracking.ts` holds the tier policy (how hard the device
+should work at a given distance) and `stopTrackingReason` (every reason
+tracking must stop). Both are pure and tested, so the rules that matter most
+are verifiable without a phone. The Expo layer maps them onto `expo-location`.
+
+`stopTrackingReason` is checked on **every** background wake, not only where it
+seemed relevant. A location task that outlives its event is a phone quietly
+reporting someone's position to a group that stopped caring hours ago, so it
+has a four-hour backstop that no other condition can talk it out of. The server
+enforces the same window independently — it does not take the client's word for
+having stopped.
+
+### Permissions
+
+The app asks for *When In Use* first, then *Always* behind its own disclosure
+screen (PS-11). Being granted only foreground is a supported outcome, not a
+failure: the app degrades, says so in the sharing indicator, and does not nag.
+Both stores require that disclosure before the system prompt, and Google Play
+additionally requires a declaration form and a demo video — start that during
+this phase, not at submission.
 
 ## Routing and ETAs
 

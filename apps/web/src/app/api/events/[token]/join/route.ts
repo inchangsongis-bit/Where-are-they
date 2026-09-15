@@ -3,7 +3,7 @@ import { findParticipantBySession, joinEvent, listParticipants } from '@/lib/eve
 import { badRequest, conflict } from '@/lib/errors';
 import {
   clientIp, handle, json, readJson, requireEvent, sessionSecretFrom,
-  setSessionCookie,
+  setSessionCookie, wantsSecretInBody,
 } from '@/lib/http';
 import { asObject, optionalString } from '@/lib/parse';
 import { enforce } from '@/lib/ratelimit';
@@ -55,12 +55,19 @@ export function POST(
       existingSessionSecretHash: existingHash,
     });
 
+    const native = wantsSecretInBody(request);
     const response = json(
-      { participant: result.participant, rejoined: result.rejoined },
+      {
+        participant: result.participant,
+        rejoined: result.rejoined,
+        ...(native && result.session !== null
+          ? { sessionSecret: result.session.secret }
+          : {}),
+      },
       result.rejoined ? 200 : 201,
     );
 
-    if (result.session !== null) {
+    if (result.session !== null && !native) {
       const options = cookieOptions();
       setSessionCookie(response, event.token, result.session.secret, {
         secure: options.secure,

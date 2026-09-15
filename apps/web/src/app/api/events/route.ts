@@ -2,7 +2,7 @@ import { inviteUrl, validateDisplayName } from '@wat/core';
 import { createEvent } from '@/lib/events';
 import { badRequest } from '@/lib/errors';
 import {
-  clientIp, handle, json, readJson, setSessionCookie,
+  clientIp, handle, json, readJson, setSessionCookie, wantsSecretInBody,
 } from '@/lib/http';
 import {
   asObject, optionalString, requireLatLng, requireString, requireTimestamp,
@@ -44,15 +44,18 @@ export function POST(request: Request): Promise<Response> {
     const base = process.env.NEXT_PUBLIC_APP_URL ?? new URL(request.url).origin;
     const options = cookieOptions();
 
+    const native = wantsSecretInBody(request);
     const response = json(
       {
         event: created.event,
         participantId: created.participantId,
         inviteUrl: inviteUrl(base, created.event.token),
+        ...(native ? { sessionSecret: created.session.secret } : {}),
       },
       201,
     );
 
+    if (native) return response;
     return setSessionCookie(response, created.event.token, created.session.secret, {
       secure: options.secure,
       maxAge: options.maxAge,

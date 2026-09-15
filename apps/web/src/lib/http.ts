@@ -47,10 +47,26 @@ export async function requireEvent(token: string): Promise<EventRecord> {
   return event;
 }
 
+/**
+ * PS-6 — where a participant's credential can arrive from.
+ *
+ * The web surface uses an httpOnly cookie, which the browser cannot read and
+ * an XSS therefore cannot steal. React Native has no such cookie jar to rely
+ * on, so the native app holds the same secret in the platform secure store and
+ * presents it as a bearer token. Same credential, same lookup, different
+ * carrier.
+ */
 export function sessionSecretFrom(
   request: Request,
   eventToken: string,
 ): string | null {
+  const authorization = request.headers.get('authorization');
+  if (authorization !== null) {
+    const match = /^Bearer\s+(.+)$/i.exec(authorization.trim());
+    const bearer = match?.[1]?.trim();
+    if (bearer !== undefined && bearer !== '') return bearer;
+  }
+
   const header = request.headers.get('cookie');
   if (header === null) return null;
 
@@ -94,6 +110,15 @@ export function clientIp(request: Request): string {
   const first = forwarded?.split(',')[0]?.trim();
   if (first !== undefined && first !== '') return first;
   return request.headers.get('x-real-ip') ?? 'unknown';
+}
+
+/**
+ * A native client has nowhere to put a Set-Cookie, so it asks for the secret in
+ * the response body instead and stores it itself. The web surface never gets
+ * it: keeping the secret unreadable by page scripts is the point of the cookie.
+ */
+export function wantsSecretInBody(request: Request): boolean {
+  return request.headers.get('x-wat-client') === 'native';
 }
 
 export function setSessionCookie(

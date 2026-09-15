@@ -1,5 +1,6 @@
 import {
-  evaluateArrival, isCheckinOpen, roundPosition, shouldRecomputeEta,
+  CHECKIN_CLOSES_AFTER_MS, evaluateArrival, isCheckinOpen, roundPosition,
+  shouldRecomputeEta,
   type LatLng, type Position, type TrackingSource, type TravelMode,
 } from '@wat/core';
 import { query, queryOne, transaction } from './db';
@@ -63,6 +64,14 @@ export async function recordPositions(args: {
 
   if (event.status === 'cancelled') {
     throw conflict('This event was cancelled.', 'event_cancelled');
+  }
+
+  // PS-2 — the client is supposed to stop tracking when the event window
+  // closes, and the server does not take its word for it. A phone with a stuck
+  // background task must not be able to keep reporting someone's position to a
+  // group that stopped caring hours ago.
+  if (now > event.startsAt + CHECKIN_CLOSES_AFTER_MS) {
+    throw conflict('This event is over.', 'event_over');
   }
 
   const state = await trackingState(participantId);
