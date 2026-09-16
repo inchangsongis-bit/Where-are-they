@@ -19,7 +19,8 @@
     "migrate:dry": "node scripts/migrate.mjs --dry-run",
     "preflight": "node scripts/preflight.mjs",
     "a11y": "node scripts/a11y.mjs",
-    "pwa:check": "node scripts/pwa-check.mjs"
+    "pwa:check": "node scripts/pwa-check.mjs",
+    "migrate:bundle": "node scripts/bundle-sql.mjs > supabase/schema.sql"
   },
   "devDependencies": {
     "axe-core": "^4.13.0",

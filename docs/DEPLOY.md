@@ -1,6 +1,9 @@
 # Deploying
 
-About 20 minutes, most of it waiting for accounts. Nothing here needs a phone.
+About 20 minutes, most of it waiting for accounts. Nothing here needs a phone,
+and — if you take the SQL-editor route in step 1 — nothing needs anything
+installed on your machine either. Two browser tabs and a card-free signup on
+each of Supabase and Vercel.
 
 Everything is verified locally except the parts that need your accounts, so if
 `pnpm preflight` is happy the deploy usually is too.
@@ -17,16 +20,25 @@ Everything is verified locally except the parts that need your accounts, so if
    your group; the free tier is plenty for a dinner.
 2. **Project Settings → Database → Connection string → URI.** Copy it and
    replace `[YOUR-PASSWORD]` with the database password you set.
-3. Apply the schema:
+3. Apply the schema. Two ways, same result:
+
+   **Browser only** — open the **SQL Editor** in Supabase, paste the whole of
+   [`supabase/schema.sql`](../supabase/schema.sql), and run it once. Nothing to
+   install.
+
+   **With the repo checked out:**
 
    ```bash
    DATABASE_URL='postgres://...' pnpm migrate
    ```
 
-   It applies each migration once and records it. Running it again is a no-op,
-   which is what makes it safe to re-run after every deploy.
+   Both leave the database in exactly the same state, including the
+   `schema_migrations` bookkeeping — verified by diffing `pg_dump` output of a
+   database built each way. So you can paste the file now and use `pnpm
+   migrate` later for the next change; it will correctly do nothing about what
+   is already applied.
 
-4. Check it:
+4. Optional, if you have the repo: check it.
 
    ```bash
    DATABASE_URL='postgres://...' NEXT_PUBLIC_APP_URL=https://placeholder \
@@ -64,6 +76,17 @@ map tab explains itself. With it, ETAs are traffic-aware.
 
 3. Deploy. Then set `NEXT_PUBLIC_APP_URL` to the real domain and redeploy —
    invite links are built from it, so a wrong value makes every link wrong.
+
+### Regenerating schema.sql
+
+After adding a migration:
+
+```bash
+pnpm migrate:bundle    # rewrites supabase/schema.sql
+```
+
+Do not edit that file by hand — it is generated, and its checksums have to
+match the migration files for the runner to agree with it.
 
 ## 4. The two scheduled jobs
 
